@@ -1,0 +1,15 @@
+numpy<2
+fastapi
+openai-whisper
+uvicorn
+python-dotenv
+pydantic
+google-genai
+langchain
+langchain-community
+langchain-google-genai
+torch==2.5.0
+torchvision==0.16.1
+torchaudio==2.5.0
+tomlkit
+colorlog

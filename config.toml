@@ -1,0 +1,13 @@
+[Logger]
+enable = true
+level = "debug"
+stream_handler = true
+file_handler = true
+file_path = "louie.log"
+enable_datetime = false
+datetime_format = "%Y-%m-%d %H:%M:%S"
+
+[APISettings]
+host = "0.0.0.0"
+port = 8000
+

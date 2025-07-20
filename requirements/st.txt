@@ -1,0 +1,5 @@
+requests
+pydantic
+streamlit
+streamlit-drawable-canvas
+tomlkit
