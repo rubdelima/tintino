@@ -41,12 +41,19 @@ Dependendo do seu hardware, instale as dependências a partir do arquivo apropri
   pip install -r requirements/api.txt
   ```
 
+* **Usar Whisper Via API apenas:**
+
+  ```bash
+  pip install -r requirements/api.txt
+  ```
+
 ## Configuração de variáveis de ambiente
 
-Crie um arquivo `.env` na raiz do projeto e adicione sua chave da API do Google Gemini:
+Crie um arquivo `.env` na raiz do projeto e adicione sua chave da API do Google Gemini e da OpenAI (para usar o whisper via API):
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
+OPENAI_API_KEY= your_openai_api_key_here
 ```
 
 ## Executando a API

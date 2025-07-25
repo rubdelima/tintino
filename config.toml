@@ -8,6 +8,11 @@ enable_datetime = false
 datetime_format = "%Y-%m-%d %H:%M:%S"
 
 [APISettings]
-host = "0.0.0.0"
+url = false
+host = "localhost"
 port = 8000
 
+[Whisper]
+# Para usar o Whisper localmente, defina como true, mas caso queira usar via API, defina como false
+local = false 
+model = "whisper-1"

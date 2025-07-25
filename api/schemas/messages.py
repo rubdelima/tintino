@@ -23,3 +23,7 @@ class Chat(BaseModel):
     messages : List[Message]
     submit_image_messages : List[SubmitImageMessage]
 
+class SubmitImageHandler(BaseModel):
+    chat_id: str
+    message_id: int
+    image_path: str

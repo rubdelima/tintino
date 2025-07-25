@@ -15,3 +15,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api", tags=["api"])
+
+@app.get("/", status_code=200)
+async def root():
+    return {"message": "Welcome to the Louie API"}

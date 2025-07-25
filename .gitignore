@@ -1,5 +1,11 @@
 *__pycache__*
 *.env
-louie.log
+*.log
 .mypy_cache/
 logs/
+temp/
+.vscode/
+.idea/
+*.pyc
+venv/
+.venv/

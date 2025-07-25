@@ -5,7 +5,7 @@ class ChatResponse(BaseModel):
     title : Optional[str] = Field(default=None, description="Título da história, opcional, pode ser usado para dar um nome à história que está sendo contada.")
     paint_image  : str = Field(description="Nome do objeto (em inglês) que deverá ser gerada uma imagem para a criança desenhar/colorir, de modo que seja um doodle disponível na base de dados do Doodle Maker, ou seja, um desenho simples que a criança possa colorir. Exemplo: 'cat', 'dog', 'house', 'tree', etc.")
     text_voice : str = Field(description="Texto que deverá ser lido para a criança, crie um texto não muito longo, de até 100 palavras")
-    intro_voice : str = Field(description="Trecho que será a introdução para iteração da crinaça, deverá ser um trecho curto de até 10 palavras")
+    intro_voice : str = Field(description="Trecho que será a introdução para iteração da criança, deverá ser um trecho curto de até 10 palavras")
     scene_image_description : str = Field(description="Descrição da cena que ilusta a cena da história que está sendo contada")
     
 class SubmitImageResponse(BaseModel):
