@@ -64,6 +64,21 @@ Para iniciar o servidor da API em modo de desenvolvimento com recarga automátic
 uvicorn api.main:app --reload
 ```
 
+## Ver o Protótipo da Interface
+
+Para ver o protótipo, primeiramente instale as dependências para a Interface, você pode instalar as dependências com:
+
+```bash
+pip install -r requirements/st.txt
+```
+
+Primeiramente inicie o servidor da api na porta 8000, depois você pode inicir a parte visual com o comando: 
+
+```bash
+streamlit run streamlit_app.py
+```
+
 A API ficará disponível em `http://localhost:8000`.
+O UI ficará disponível em `http://localhost:8501`
 
 ---

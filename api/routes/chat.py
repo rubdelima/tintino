@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from api.schemas.messages import NewChatInput, Chat, SubmitImageMessage, SubmitImageHandler
 from api.services.chat import new_chat, chats, continue_chat
 from api.utils.logger import get_logger
-from api.services.messages import submit_image
+from api.services.messages import submit_image, generate_feedback_audio
 
 logger = get_logger(__name__)
 
@@ -58,15 +58,23 @@ async def submit_image_api(handler: SubmitImageHandler):
             return {"error": "Image already submitted for this message"}
         
         logger.info(f"Submetendo imagem {len(chat.messages)} em {handler.image_path} de um {chat.messages[-1].data.paint_image} para o chat: {handler.chat_id}")
+        
         result = submit_image(handler.chat_id, chat.messages[handler.message_id].data.paint_image, len(chat.messages), handler.image_path)
 
-        if result.data.is_correct:
+        if result.is_correct:
             logger.info(f"Imagem submetida corretamente para o chat: {handler.chat_id}, gerando nova mensagem.")
-            chats[handler.chat_id].submit_image_messages.append(result)
-            if len(chat.messages) - len(chat.submit_image_messages) >= 1:
-                continue_chat(handler.chat_id)
+            feedback_audio = "Fale de uma maneira energética, elogiando o desenho da criança com essas palavras: "
+            continue_chat(handler.chat_id)
+        else:
+            logger.warning(f"Imagem submetida incorretamente para o chat: {handler.chat_id}, gerando feedback.")
+            feedback_audio = "Fale de uma maneira apasiguadora, incentivando a criança a melhorar seu desenho com essas palavras: "
+            
+        feedback = generate_feedback_audio(result, feedback_audio, handler.chat_id, handler.message_id)
+        
+        if result.is_correct:
+            chats[handler.chat_id].submit_image_messages.append(feedback)
 
-        return result
+        return feedback
     
     except Exception as e:
         logger.error(f"Erro ao submeter imagem: {e}")

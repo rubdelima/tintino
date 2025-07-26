@@ -29,12 +29,12 @@ def generate_text_to_voice(prompt: str, chat_id: str, message_id: int, feedback:
    data = response.candidates[0].content.parts[0].inline_data.data #type:ignore
    
    if feedback:
-        filename = f'./temp/{chat_id}/{message_id}_feedback.wav'
+        filename = f'./temp/{chat_id}/{message_id}/feedback.wav'
         if os.path.exists(filename):
            os.remove(filename)
         
    else:
-     filename= f'./temp/{chat_id}/{message_id}.wav'
+     filename= f'./temp/{chat_id}/{message_id}/history.wav'
    
    wave_file(filename, data)
    

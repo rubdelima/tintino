@@ -51,14 +51,14 @@ def get_chat(chat_id: str) -> Chat:
 
     raise Exception(f"Failed to retrieve chat: {response.status_code} - {response.text}")
 
-def submit_image(chat_id: str, message_id: int, image_path: str) -> SubmitImageAPIResponse:
+def submit_image(chat_id: str, message_id: int, image_path: str) -> SubmitImageMessage:
     """Submit an image for a specific chat."""
-    if not chat_id or not message_id or not image_path:
-        raise ValueError("chat_id, message_id, and image_path must be provided.")
 
     input_data = SubmitImageHandler(chat_id=chat_id, message_id=message_id, image_path=image_path)
-    response = requests.post(f"{API_URL}/api/chat/{chat_id}", json=input_data.model_dump())
-    if response.status_code == 200:
-        return SubmitImageAPIResponse(**response.json())
+    
+    response = requests.post(f"{API_URL}/api/chat/{chat_id}/submit_image", json=input_data.model_dump())
+    
+    if response.status_code == 201:
+        return SubmitImageMessage(**response.json())
 
     raise Exception(f"Failed to submit image: {response.status_code} - {response.text}")

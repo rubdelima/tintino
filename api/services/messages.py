@@ -1,18 +1,19 @@
-import os
-from langchain_core.messages import HumanMessage, SystemMessage
-from api.schemas.messages import Message
-from api.schemas.llm import ChatResponse, SubmitImageResponse
-from api.schemas.messages import SubmitImageMessage
 from api.utils.logger import get_logger
-from api.utils import image_to_b64
-import time
-from concurrent.futures import ThreadPoolExecutor
+from api.schemas.messages import Message, Chat
+from api.utils import image_to_b64, path_to_b64
+from api.schemas.messages import SubmitImageMessage
 from api.models.google import new_chat_llm, submit_llm
 from api.models.text_to_image import generate_scene_image
 from api.models.text_to_speech import generate_text_to_voice
-from api.models.prompts import submit_image_prompt
-from api.models.prompts import initial_prompt, new_message_prompt
+from api.schemas.llm import ChatResponse, SubmitImageResponse
+from api.models.prompts import submit_image_prompt, initial_prompt, new_message_prompt
+
+import os
+import time
+import threading
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+from langchain_core.messages import HumanMessage, SystemMessage
 
 logger = get_logger(__name__)
 
@@ -84,31 +85,36 @@ def generate_next_message(chat_id, message_id, history:list[str], paintned_items
     
     return generate_image_audio(result, chat_id, message_id)
 
-def submit_image(chat_id: str, target: str, message_id:int, image_path: str):
+def submit_image(chat_id: str, target: str, message_id:int, image_path: str) -> SubmitImageResponse:
+    
+    image_message = {
+        "type": "image",
+        "source_type": "base64",
+        "mime_type": "image/png",
+        "data": path_to_b64(image_path),
+    }
+    
     messages = [
-        {
-            "role" : "system",
-            "text" : submit_image_prompt.format(doodle_name=target)
-        },
-        image_to_b64(image_path)
+        HumanMessage(content=[image_message]),
+        SystemMessage(submit_image_prompt.format(doodle_name=target))
     ]
     
     logger.debug(f"Submetendo nova imagem para o chat: {chat_id}")
+    
     start_time = time.time()
+    
     result = submit_llm.invoke(messages)
 
     assert isinstance(result, SubmitImageResponse)
 
     logger.debug(f"Imagem submetida em {time.time() - start_time:.2f} segundos.")
     
-    if result.is_correct:
-        feedback_audio = "Fale de uma maneira energética, elogiando o desenho da criança com essas palavras: "
-    else:
-        feedback_audio = "Fale de uma maneira apasiguadora, incentivando a criança a melhorar seu desenho com essas palavras: "
-
+    return result
+    
+def generate_feedback_audio(result: SubmitImageResponse, feedback_audio:str, chat_id: str, message_id: int) -> SubmitImageMessage:
     start_time = time.time()
     
-    feedback_audio = generate_text_to_voice(feedback_audio + result.feedback, chat_id, message_id)
+    feedback_audio = generate_text_to_voice(feedback_audio + result.feedback, chat_id, message_id, True)
 
     logger.debug(f"Áudio de feedback gerado em {time.time() - start_time:.2f} segundos.")
     
