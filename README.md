@@ -1,8 +1,24 @@
-# Louie
+## 🐠 Tintino – Histórias Interativas com Inteligência Artificial
 
-## Sobre o Projeto
 
-Louie é um projeto da disciplina de Criatividade Computacional com o objetivo de criar histórias interativas para crianças, utilizando imagens e áudio gerados por ferramentas de Inteligência Artificial. Através de prompts, o sistema gera elementos visuais e narrativos que tornam a experiência mais envolvente e personalizada.
+> **Objetivo**: Tornar a tecnologia uma aliada para histórias, estimulando a criatividade, a imaginação e a autonomia das crianças através de um ambiente lúdico, educativo e interativo.
+
+<p align="center">
+  <img src="./assets/images/logo.png" alt="estuda-ai" width="60%">
+</p>
+
+
+**Tintino** é um projeto desenvolvido para a disciplina de **Criatividade Computacional**, com o propósito de explorar o uso de **Inteligência Artificial** na criação de histórias **interativas e personalizadas para crianças**.
+
+A proposta do projeto é transformar a experiência de contar histórias em algo mais **imaginativo, dinâmico e multimodal**, por meio de:
+
+🎨 **Imagens Geradas por IA**: as cenas e personagens são criados a partir de prompts, trazendo ilustrações únicas e encantadoras.
+
+🎙️ **Narração por Voz**: com uso de síntese de voz, as histórias ganham vida por meio de áudios expressivos e imersivos.
+
+🗣️ **Interações por Fala e Escuta**: a criança pode participar das histórias, fazendo escolhas, respondendo perguntas e interagindo com os personagens por voz.
+
+🖍️ **Avaliação de Desenhos**: o sistema também incentiva a criatividade ao permitir que a criança desenhe e receba um retorno gentil da IA, incentivando a expressão artística.
 
 ## Configurando o ambiente
 
@@ -72,7 +88,7 @@ Para ver o protótipo, primeiramente instale as dependências para a Interface, 
 pip install -r requirements/st.txt
 ```
 
-Primeiramente inicie o servidor da api na porta 8000, depois você pode inicir a parte visual com o comando: 
+Primeiramente inicie o servidor da api na porta 8000, depois você pode inicir a parte visual com o comando:
 
 ```bash
 streamlit run streamlit_app.py

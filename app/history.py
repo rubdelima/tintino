@@ -14,7 +14,7 @@ def history_page(chat: Chat):
             st.image(message.image, use_container_width=True)
             if index == len(chat.messages) - 1:
                 draw_result = draw_canvas()
-                if st.button("Submit Drawing"):
+                if st.button("Enviar Desenho"):
                     response = submit_drawing(draw_result.image_data, chat.chat_id, message.message_index)
                     st.audio(response.audio, format="audio/wav", start_time=0, autoplay=True)
             else:

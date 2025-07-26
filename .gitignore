@@ -9,3 +9,5 @@ temp/
 *.pyc
 venv/
 .venv/
+appdata/
+cache/
