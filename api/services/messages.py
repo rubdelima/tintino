@@ -10,10 +10,9 @@ from api.models.prompts import submit_image_prompt, initial_prompt, new_message_
 
 import os
 import time
-import threading
-from typing import Optional
+from typing import Optional, List, Union
 from concurrent.futures import ThreadPoolExecutor
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 logger = get_logger(__name__)
 
@@ -61,21 +60,17 @@ def generate_next_message(chat_id, message_id, history:list[str], paintned_items
     
     logger.debug(f"Criando nova mensagem com ID: {message_id} no chat: {chat_id}")
     
-    messages = [
-        {
-            "role" : "assistant",
-            "text" : hist_part
-        }
-        for hist_part in history
-    ]
+    messages : List[Union[AIMessage, HumanMessage, SystemMessage]] = [AIMessage(content=history_part) for history_part in history]
     
-    if last_image:
-        messages.append(image_to_b64(last_image, "Última imagem gerada"))
+    if last_image is not None:
+        messages.append(HumanMessage(content=[{
+            "type": "image",
+            "source_type": "base64",
+            "mime_type": "image/png",
+            "data": path_to_b64(last_image),
+        }]))
     
-    messages.append({
-        "role" : "system",
-        "text" : new_message_prompt.format(painted_items=paintned_items)
-    })
+    messages.append(SystemMessage(content=new_message_prompt.format(painted_items=paintned_items)))
     
     logger.debug(f"Enviando prompt para o Gemini do chat {chat_id} e mensagem {message_id}")
 
