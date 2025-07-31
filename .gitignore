@@ -11,3 +11,5 @@ venv/
 .venv/
 appdata/
 cache/
+.temp
+firebase.json

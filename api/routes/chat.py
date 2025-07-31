@@ -53,7 +53,7 @@ async def submit_image_api(handler: SubmitImageHandler):
             logger.error(f"Mensagem com ID {handler.message_id} não encontrada no chat: {handler.chat_id}")
             raise HTTPException(status_code=404, detail="Message not found")
 
-        if handler.message_id in [img_msg.message_index for img_msg in chat.submit_image_messages]:
+        if handler.message_id in [img_msg.message_index for img_msg in chat.subimits]:
             logger.warning(f"Imagem já submetida para a mensagem {handler.message_id} no chat: {handler.chat_id}")
             return {"error": "Image already submitted for this message"}
         
@@ -72,7 +72,7 @@ async def submit_image_api(handler: SubmitImageHandler):
         feedback = generate_feedback_audio(result, feedback_audio, handler.chat_id, handler.message_id)
         
         if result.is_correct:
-            chats[handler.chat_id].submit_image_messages.append(feedback)
+            chats[handler.chat_id].subimits.append(feedback)
 
         return feedback
     

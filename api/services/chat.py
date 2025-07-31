@@ -40,7 +40,7 @@ def new_chat(input_data: NewChatInput) -> Chat:
         chat_id=chat_id,
         title=message.data.title if message.data.title else "Nova História",
         messages=[message],
-        submit_image_messages=[]
+        subimits=[]
     )
     
     logger.debug(f"Novo chat criado com ID: {chat_id} e título: {chat.title}")

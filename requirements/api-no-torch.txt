@@ -10,3 +10,4 @@ langchain-google-genai
 tomlkit
 colorlog
 openai
+python-magic

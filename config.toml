@@ -15,4 +15,8 @@ port = 8000
 [Whisper]
 # Para usar o Whisper localmente, defina como true, mas caso queira usar via API, defina como false
 local = false 
-model = "whisper-1"
+model = "whisper-1" # gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1 
+
+[Database]
+local = true
+save_local = true
