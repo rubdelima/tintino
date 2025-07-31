@@ -1,7 +1,10 @@
 import wave
 from google.genai import types
-from api.models.google import google_client
 import os
+from api.models.google import google_client
+from api.constraints import config
+
+voice_name = config.get("Gemini", {}).get("voice_name", "Kore")  # type:ignore
 
 def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
    with wave.open(filename, "wb") as wf:
@@ -19,7 +22,7 @@ def generate_text_to_voice(prompt: str, chat_id: str, message_id: int, feedback:
          speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
                prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                  voice_name='Kore',
+                  voice_name=voice_name,
                )
             )
          ),

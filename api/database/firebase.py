@@ -44,6 +44,16 @@ class FirebaseDB(DatabaseInterface):
             **temp_user.model_dump(),
         )
         
+        self.db.collection('users').\
+            where(FieldFilter('email', '==', user.email)).\
+            limit(1)
+        
+        existing_users = list(self.db.collection('users').stream())
+
+        if existing_users:
+            logger.warning(f"Usuário com email {user.email} já existe.")
+            raise ValueError("Email já cadastrado.")
+        
         self.db.collection('users').document(user_id).set(user.model_dump())
         logger.info(f"Usuário criado no Firestore com ID: {user_id}")
         return user

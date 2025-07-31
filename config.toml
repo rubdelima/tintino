@@ -13,9 +13,12 @@ host = "localhost"
 port = 8000
 
 [Whisper]
-# Para usar o Whisper localmente, defina como true, mas caso queira usar via API, defina como false
-local = false 
+local = false # Para usar o Whisper localmente, defina como true, mas caso queira usar via API, defina como false
 model = "whisper-1" # gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1 
+
+[Gemini]
+model = "gemini-2.5-flash"
+voce_name = "Kore"
 
 [Database]
 local = true
