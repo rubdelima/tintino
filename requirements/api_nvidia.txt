@@ -16,3 +16,4 @@ tomlkit
 colorlog
 openai
 python-magic
+firebase-admin

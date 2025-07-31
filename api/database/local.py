@@ -2,11 +2,10 @@ from fastapi import UploadFile
 from api.database.interface import *
 import json
 import os
-import uuid
 from functools import wraps
+import uuid
 from pathlib import Path
-import magic
-import mimetypes
+
 
 from api.utils.logger import get_logger
 from api.constraints import config
@@ -98,19 +97,17 @@ class LocalDatabase(DatabaseInterface):
         user_chats.sort(key=lambda x: x.last_update, reverse=True)
         return user_chats
     
-    
-    def store_archive(self, user_id: str, file: UploadFile) -> str:
+    async def store_archive(self, user_id: str, file: UploadFile) -> str:
         try:
             user_path = Path(f"./temp/archives/{user_id}")
             user_path.mkdir(parents=True, exist_ok=True)
             
-            content = file.file.read()
-            file.file.seek(0)
+            content, mime, extension = await get_mime_extension(file)
             
-            mime = magic.from_buffer(content, mime=True)
-            extension = mimetypes.guess_extension(mime) or '.bin'
-            
-            file_name = f"{uuid.uuid4()}{extension}"
+            while (file_id := f"{uuid.uuid4()}") in self.archives:
+                continue
+
+            file_name = f"{file_id}{extension}"
             file_path = user_path / file_name
             
             with open(file_path, "wb") as f:
