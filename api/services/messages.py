@@ -40,13 +40,11 @@ def generate_image_audio(result: ChatResponse, chat_id: str, message_id: int) ->
         data=result
     )
 
-def new_message(instruction:str, chat_id: str, message_id: int) -> Message:
-    os.makedirs(f'./temp/{chat_id}/{message_id}', exist_ok=True)
-    
+def new_message(instruction:str, chat_id: str, message_id: int) -> Message:    
     logger.debug(f"Criando nova mensagem com ID: {message_id} no chat: {chat_id}")
-
+    
     messages = [SystemMessage(content=initial_prompt), HumanMessage(content=instruction)]
-
+    
     logger.debug(f"Enviando prompt para o Gemini do chat {chat_id} e mensagem {message_id}")
 
     result = new_chat_llm.invoke(messages)

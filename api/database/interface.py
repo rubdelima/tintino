@@ -2,25 +2,7 @@ from abc import ABC, abstractmethod
 from api.schemas.users import User, CreateUser, UserDB, LoginHandler
 from api.schemas.messages import Chat, MiniChat, SubmitImageMessage, Message
 from fastapi import UploadFile
-import magic
-import mimetypes
 from typing import Literal
-
-async def get_mime_extension(file: UploadFile):
-    try:
-        content = await file.read()
-        await file.seek(0)
-        
-        mime = magic.from_buffer(content, mime=True)
-        extension = mimetypes.guess_extension(mime) or '.bin'
-        
-        return content, mime, extension
-        
-    except Exception as e:
-        await file.seek(0)
-        content = await file.read()
-        await file.seek(0)
-        return content, 'application/octet-stream', '.bin'
 
 class DatabaseInterface(ABC):
     

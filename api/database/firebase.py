@@ -5,9 +5,10 @@ from fastapi import UploadFile, HTTPException
 import uuid
 from datetime import datetime, timezone
 
-from api.database.interface import DatabaseInterface, get_mime_extension
+from api.database.interface import DatabaseInterface
 from api.schemas.users import User, CreateUser, UserDB, LoginHandler
 from api.schemas.messages import Chat, MiniChat, SubmitImageMessage, Message
+from api.utils import get_mime_extension
 
 from api.utils.logger import get_logger
 

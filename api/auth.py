@@ -7,7 +7,7 @@ logger = get_logger(__name__)
 
 security_bearer = HTTPBearer()
 
-def verify_user(credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
+def verify_user(credentials: HTTPAuthorizationCredentials = Depends(security_bearer))->str:
     """Verify user credentials."""
     
     token = credentials.credentials

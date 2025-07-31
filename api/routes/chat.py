@@ -1,31 +1,25 @@
-from fastapi import APIRouter, HTTPException
-from api.schemas.messages import NewChatInput, Chat, SubmitImageMessage, SubmitImageHandler
-from api.services.chat import new_chat, chats, continue_chat
+from fastapi import APIRouter, HTTPException, Depends, UploadFile
+from fastapi.security import HTTPAuthorizationCredentials
+
+from api.schemas.messages import NewChatInput, Chat, SubmitImageMessage, SubmitImageHandler, MiniChat
+from api.services.chat import new_chat, continue_chat
 from api.utils.logger import get_logger
 from api.services.messages import submit_image, generate_feedback_audio
+from api.database import db
+from api.auth import security_bearer
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
-@router.get("/", response_model=list[Chat], status_code=200)
-async def get_chats():
-    """Retrieve all chats."""
-    chats_list = list(chats.values())
-    logger.info(f"Carregando todos os {len(chats_list)} chats.")
-    return chats_list
-
 @router.post("/", response_model=Chat, status_code=201)
-async def create_chat(input_data: NewChatInput):
-    """Create a new chat session.
-
-    Args:
-        input_data (NewChatInput): The input data for the new chat session.
-    """
+async def create_chat(voice_audio : UploadFile, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
+    
     try:
-        chat = new_chat(input_data)
+        chat = new_chat(voice_audio)
         logger.info(f"Chat de Título: {chat.title} - ID: {chat.chat_id}")
         return chat
+    
     except Exception as e:
         logger.error(f"Erro ao criar chat: {e}")
         return {"error": str(e)}

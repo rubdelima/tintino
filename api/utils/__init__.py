@@ -1,6 +1,12 @@
 import json
 import base64
 from typing import Optional
+import magic
+import mimetypes
+from fastapi import UploadFile
+import uuid
+from pathlib import Path
+import os
 
 def load_json(file_path: str) -> dict:
     with open(file_path, "r") as f:
@@ -27,3 +33,33 @@ def image_to_b64(image: str, text:Optional[str] = None) -> dict:
     if text:
         data["text"] = text
     return data
+
+async def get_mime_extension(file: UploadFile):
+    try:
+        content = await file.read()
+        await file.seek(0)
+        
+        mime = magic.from_buffer(content, mime=True)
+        extension = mimetypes.guess_extension(mime) or '.bin'
+        
+        return content, mime, extension
+        
+    except Exception as e:
+        await file.seek(0)
+        content = await file.read()
+        await file.seek(0)
+        return content, 'application/octet-stream', '.bin'
+
+async def store_temp_file(file: UploadFile) -> tuple[str, str]:
+    temp_id = str(uuid.uuid4())
+    
+    content, mime, extension = await get_mime_extension(file)
+    
+    temp_dir = Path('./temp') / temp_id
+    os.makedirs(temp_dir, exist_ok=True)
+    file_path = temp_dir / f"file{extension}"
+    
+    file_path.write_bytes(content)
+    
+    return str(file_path), mime
+    
