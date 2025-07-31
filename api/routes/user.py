@@ -39,6 +39,7 @@ async def login_user(handler: LoginHandler):
 
 @router.post("/get_user", response_model=User, status_code=200)
 async def get_user(user_id: str):
+    """Retrieve a user by their ID."""
     try:
         user = db.get_user(user_id)
         return user

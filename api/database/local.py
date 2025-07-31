@@ -6,7 +6,6 @@ from functools import wraps
 import uuid
 from pathlib import Path
 
-
 from api.utils.logger import get_logger
 from api.constraints import config
 from api.schemas.messages import MiniChat
@@ -88,6 +87,9 @@ class LocalDatabase(DatabaseInterface):
             raise ValueError("User not found")
         
         return User(**temp_user.model_dump(), chats=self.get_user_chats(user_id))
+    
+    def verify_user(self, user_id: str) -> bool:
+        return user_id in self.users
     
     def get_user_chats(self, user_id: str) -> list[MiniChat]:
         user_chats = [

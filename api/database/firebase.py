@@ -76,14 +76,17 @@ class FirebaseDB(DatabaseInterface):
         return User(**user_data, chats=self.get_user_chats(user_data['user_id']))
 
     def get_user(self, user_id: str) -> User:
-        doc_ref = self.db.collection('users').document(user_id)
-        user_doc = doc_ref.get()
+        user_doc = self.db.collection('users').document(user_id).get()
 
         if not user_doc.exists:
             raise ValueError("User not found")
 
         user_data = user_doc.to_dict()
         return User(**user_data, chats=self.get_user_chats(user_id))
+    
+    def verify_user(self, user_id: str) -> bool:
+        user_doc = self.db.collection('users').document(user_id).get()
+        return user_doc.exists
 
     # --- Chat Functions ---
 

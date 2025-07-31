@@ -40,6 +40,11 @@ class DatabaseInterface(ABC):
         """Retrieve a user by their ID."""
         pass
     
+    @abstractmethod
+    def verify_user(self, user_id: str) -> bool:
+        """Verify if a user exists by their ID."""
+        pass
+    
     # Chat Functions
     @abstractmethod
     def get_user_chats(self, user_id: str) -> list[MiniChat]:
