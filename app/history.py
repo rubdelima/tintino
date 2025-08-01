@@ -2,8 +2,12 @@ import streamlit as st
 from api.schemas.messages import Chat
 from app.utils.draw_canvas import draw_canvas
 from app.utils import submit_drawing
+import app.api_handler.chat as handler
+from typing import Optional
 
-def history_page(chat: Chat):
+def history_page(mini_chat: Chat, user_id: Optional[str] = None):
+    chat = handler.get_chat(mini_chat.chat_id, user_id)
+    
     st.title(chat.title)
 
     history_tabs = st.tabs([str(i) for i in range(len(chat.messages))])
@@ -18,5 +22,4 @@ def history_page(chat: Chat):
                     response = submit_drawing(draw_result.image_data, chat.chat_id, message.message_index)
                     st.audio(response.audio, format="audio/wav", start_time=0, autoplay=True)
             else:
-                image_path = f"./temp/{chat.chat_id}/{message.message_index}/submission.png"
-                st.image(image_path)
+                st.image(chat.subimits[index].image, use_container_width=True)

@@ -16,7 +16,7 @@ try:
     st.logo("./assets/images/icon.png", size="large")
     
     from app.history import history_page
-    from app.utils import get_chats
+    from app.api_handler import get_chats
     
     chats = get_chats()
     
@@ -31,7 +31,7 @@ try:
         ],
         "Ultimas Histórias" : [
             st.Page(
-                lambda chat=chat: history_page(chat),
+                lambda chat=chat: history_page(chat), # type: ignore
                 icon= "🎨",
                 title= chat.title,
                 url_path= chat.chat_id,

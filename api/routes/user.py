@@ -34,7 +34,6 @@ async def login_user(handler: LoginHandler):
         logger.error(f"Erro ao fazer login: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/get_user", response_model=User, status_code=200)
 async def get_user(user_id: str):
     """Retrieve a user by their ID."""

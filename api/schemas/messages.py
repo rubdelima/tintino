@@ -20,6 +20,7 @@ class Message(ContinueChat):
 class SubmitImageMessage(BaseModel):
     message_index : int
     audio : str
+    image : str
     data : SubmitImageResponse
 
 class MiniChatBase(BaseModel):
