@@ -10,5 +10,7 @@ langchain-google-genai
 tomlkit
 colorlog
 openai
-python-magic
+python-magic-bin
 firebase-admin
+libmagic
+python-multipart

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from api.schemas.users import User, CreateUser, UserDB, LoginHandler
-from api.schemas.messages import Chat, MiniChat, SubmitImageMessage, Message
+from api.schemas.messages import Chat, MiniChatBase, MiniChat, SubmitImageMessage, Message, ChatItems
 from fastapi import UploadFile
-from typing import Literal
+from typing import Literal, Optional, Any
 
 class DatabaseInterface(ABC):
     
@@ -34,8 +34,29 @@ class DatabaseInterface(ABC):
         pass
     
     @abstractmethod
-    async def store_archive(self, user_id: str, file: UploadFile) -> str:
+    def get_chat_items(self, chat_id: str) -> ChatItems:
+        """Retrieve all messages for a given chat."""
+        pass
+
+    @abstractmethod
+    async def store_user_archive(self, user_id: str, file: UploadFile) -> str:
         """Store an archive file for a user."""
+        pass
+    
+    @abstractmethod
+    def upload_generated_archive(
+            self, 
+            file_bytes: bytes, 
+            destination_path: str, 
+            mime_type: str,
+            base_filename: Optional[str] = None) -> str:
+        
+        """Upload an generated file."""
+        pass
+    
+    @abstractmethod
+    def assert_chat_exists(self, chat_id: str, user_id: str) -> Any:
+        """Check if a chat exists and belongs to the user."""
         pass
     
     @abstractmethod
@@ -44,7 +65,12 @@ class DatabaseInterface(ABC):
         pass
     
     @abstractmethod
-    def save_chat(self, chat: MiniChat) -> None:
+    def get_new_chat_id(self, user_id:str) -> str:
+        """Generate a new unique chat ID."""
+        pass
+    
+    @abstractmethod
+    def save_chat(self, user_id: str, chat: MiniChatBase) -> MiniChat:
         """Save a chat."""
         pass
     
@@ -52,3 +78,4 @@ class DatabaseInterface(ABC):
     def update_chat(self, user_id: str, chat_id: str, target: Literal["messages", "submits"], item: SubmitImageMessage | Message) -> None:
         """Update a chat by adding a message or submission."""
         pass
+    

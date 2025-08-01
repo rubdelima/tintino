@@ -14,5 +14,7 @@ torchaudio==2.5.0
 tomlkit
 colorlog
 openai
-python-magic
+python-magic-bin
 firebase-admin
+libmagic
+python-multipart

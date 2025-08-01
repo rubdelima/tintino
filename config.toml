@@ -21,5 +21,5 @@ model = "gemini-2.5-flash"
 voce_name = "Kore"
 
 [Database]
-local = true
+local = false
 save_local = true

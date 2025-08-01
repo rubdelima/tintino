@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials
 
-from api.schemas.messages import NewChatInput, Chat, SubmitImageMessage, SubmitImageHandler, MiniChat
+from api.schemas.messages import Chat, SubmitImageMessage, SubmitImageHandler
 from api.services.chat import new_chat, continue_chat
 from api.utils.logger import get_logger
 from api.services.messages import submit_image, generate_feedback_audio
@@ -14,62 +14,60 @@ router = APIRouter()
 
 @router.post("/", response_model=Chat, status_code=201)
 async def create_chat(voice_audio : UploadFile, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
-    
+    user_id = credentials.credentials
     try:
-        chat = new_chat(voice_audio)
+        chat = await new_chat(user_id, voice_audio) #type:ignore
         logger.info(f"Chat de Título: {chat.title} - ID: {chat.chat_id}")
         return chat
-    
+    except HTTPException as http_exc:
+        logger.error(f"Erro ao criar chat: {http_exc.detail}")
+        raise http_exc
     except Exception as e:
         logger.error(f"Erro ao criar chat: {e}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/{chat_id}", response_model=Chat, status_code=200)
-async def get_chat(chat_id: str):
+async def get_chat(chat_id: str, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
     """Retrieve a specific chat by its ID."""
-    chat = chats.get(chat_id)
-    if chat:
+    user_id = credentials.credentials
+    try:
+        chat = db.get_chat(chat_id, user_id) #type:ignore
         return chat
-    logger.warning(f"Chat não encontrado: {chat_id}")
-    
-    raise HTTPException(status_code=404, detail="Chat not found")
+    except HTTPException as http_exc:
+        logger.error(f"Erro ao buscar chat: {http_exc.detail}")
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Erro ao buscar chat: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/{chat_id}/submit_image", response_model=SubmitImageMessage, status_code=201)
-async def submit_image_api(handler: SubmitImageHandler):
+async def submit_image_api(chat_id:str, image: UploadFile, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
     """Submit an image for a specific chat."""
-    if handler.chat_id not in chats:
-        logger.error(f"Chat não encontrado: {handler.chat_id}")
-        raise HTTPException(status_code=404, detail="Chat not found")
-    
     try:
-        chat = chats[handler.chat_id]
-        if handler.message_id >= len(chat.messages):
-            logger.error(f"Mensagem com ID {handler.message_id} não encontrada no chat: {handler.chat_id}")
-            raise HTTPException(status_code=404, detail="Message not found")
-
-        if handler.message_id in [img_msg.message_index for img_msg in chat.subimits]:
-            logger.warning(f"Imagem já submetida para a mensagem {handler.message_id} no chat: {handler.chat_id}")
-            return {"error": "Image already submitted for this message"}
+        user_id = credentials.credentials
+        chat = db.get_chat(chat_id, user_id)
+        message_index = len(chat.subimits)
         
-        logger.info(f"Submetendo imagem {len(chat.messages)} em {handler.image_path} de um {chat.messages[-1].data.paint_image} para o chat: {handler.chat_id}")
+        logger.info(f"Submetendo desenho {message_index} do chat : {chat}")
         
-        result = submit_image(handler.chat_id, chat.messages[handler.message_id].data.paint_image, len(chat.messages), handler.image_path)
-
+        result = await submit_image(chat_id, chat.messages[-1].paint_image, image)
+        
         if result.is_correct:
-            logger.info(f"Imagem submetida corretamente para o chat: {handler.chat_id}, gerando nova mensagem.")
+            logger.info(f"Imagem submetida corretamente para o chat: {chat_id}, gerando nova mensagem.")
             feedback_audio = "Fale de uma maneira energética, elogiando o desenho da criança com essas palavras: "
-            continue_chat(handler.chat_id)
+            continue_chat(user_id, chat_id, message_index + 1)
         else:
-            logger.warning(f"Imagem submetida incorretamente para o chat: {handler.chat_id}, gerando feedback.")
+            logger.info(f"Imagem submetida incorretamente para o chat: {chat_id}, gerando feedback.")
             feedback_audio = "Fale de uma maneira apasiguadora, incentivando a criança a melhorar seu desenho com essas palavras: "
             
-        feedback = generate_feedback_audio(result, feedback_audio, handler.chat_id, handler.message_id)
+        feedback = generate_feedback_audio(result, feedback_audio, user_id, chat_id, message_index)
         
-        if result.is_correct:
-            chats[handler.chat_id].subimits.append(feedback)
-
         return feedback
+    
+    except HTTPException as http_exc:
+        logger.error(f"Erro ao submeter imagem: {http_exc.detail}")
+        raise http_exc
     
     except Exception as e:
         logger.error(f"Erro ao submeter imagem: {e}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail="Internal Server Error")

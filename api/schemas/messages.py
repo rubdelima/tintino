@@ -1,28 +1,34 @@
 from pydantic import BaseModel
-from api.schemas.llm import ChatResponse, SubmitImageResponse
+from api.schemas.llm import ContinueChat, SubmitImageResponse
 from typing import List, Optional
 from datetime import datetime
+
+class ChatItems(BaseModel):
+    history: str
+    painted_items: str
+    last_image: str
 
 class NewChatInput(BaseModel):
     audio_path: Optional[str] = None
     instruction : Optional[str] = None
 
-class Message(BaseModel):
+class Message(ContinueChat):
     message_index : int
     image : str
     audio : str
-    data : ChatResponse
-
+    
 class SubmitImageMessage(BaseModel):
     message_index : int
     audio : str
     data : SubmitImageResponse
 
-class MiniChat(BaseModel):
-    chat_id: str
+class MiniChatBase(BaseModel):
     title: str 
     chat_image : str
     last_update : datetime
+
+class MiniChat(MiniChatBase):
+    chat_id: str
 
 class Chat(MiniChat):
     messages : List[Message] = []

@@ -1,4 +1,4 @@
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 import json
 import os
 from functools import wraps
@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 from api.database.interface import *
 from api.utils.logger import get_logger
 from api.constraints import config
-from api.schemas.messages import MiniChat
+from api.schemas.messages import MiniChat, ChatItems
 from api.schemas.users import CreateUser
-from api.utils import get_mime_extension
+from api.utils import get_mime_extension, generate_filename
 
 database_configs = config.get("Database", {})
 
@@ -45,6 +45,7 @@ def auto_save(func):
 class LocalDatabase(DatabaseInterface):
     def __init__(self) -> None:
         self.save = database_configs.get('save_local', False)
+        self.temp_chat_ids = {}
         if self.save:
             self.load_db()
         else:
@@ -100,7 +101,23 @@ class LocalDatabase(DatabaseInterface):
         user_chats.sort(key=lambda x: x.last_update, reverse=True)
         return user_chats
     
-    async def store_archive(self, user_id: str, file: UploadFile) -> str:
+    def get_chat_items(self, chat_id: str) -> ChatItems:
+        chat = self.chats.get(chat_id)
+        
+        if not chat:
+            raise ValueError("Chat not found")
+        
+        chat_messages = chat.get('messages')
+
+        chat_messages.sort(key=lambda x: x['message_index'])
+
+        return ChatItems(
+            history="\n".join(item["text_voice"] for item in chat_messages),
+            painted_items=", ".join(item["paint_image"] for item in chat_messages),
+            last_image=chat_messages[-1]["image"]
+        ) 
+    
+    async def store_user_archive(self, user_id: str, file: UploadFile) -> str:
         try:
             user_path = Path(f"./temp/archives/{user_id}")
             user_path.mkdir(parents=True, exist_ok=True)
@@ -124,20 +141,57 @@ class LocalDatabase(DatabaseInterface):
         except Exception as e:
             logger.error(f"Error storing archive: {e}")
             raise e
+    
+    def upload_generated_archive(
+            self, 
+            file_bytes: bytes, 
+            destination_path: str, 
+            mime_type: str,
+            base_filename: Optional[str] = None) -> str:
         
+        filename = generate_filename(mime_type, base_filename)
+        
+        file_path = Path(f'./temp/archives/{destination_path}') / filename
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_bytes(file_bytes)
+        
+        file_path_str = str(file_path)
+        logger.info(f"Arquivo {mime_type} salvo em: {file_path_str}")
+
+        return file_path_str
+    
+    def assert_chat_exists(self, chat_id: str, user_id: str) -> dict:
+        if chat_id not in self.chats:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        if self.chats[chat_id]['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Unauthorized access")
+        return self.chats[chat_id]
+    
     def get_chat(self, chat_id: str, user_id:str) -> Chat:
-        temp_chat = self.chats.get(chat_id)
-        if not temp_chat:
-            raise ValueError("Chat not found")
-
-        if temp_chat['user_id'] != user_id:
-            raise ValueError("Unauthorized access")
-
-        return Chat(**temp_chat.model_dump())
+        temp_chat = self.assert_chat_exists(chat_id, user_id)
+        return Chat(**temp_chat)
+    
+    def generate_new_chat_id(self) -> str:
+        while (chat_id := str(uuid.uuid4())) in self.chats:
+            continue
+        return chat_id
+    
+    def get_new_chat_id(self, user_id:str) -> str:
+        chat_id = self.generate_new_chat_id()
+        self.temp_chat_ids[user_id] = chat_id
+        return chat_id
     
     @auto_save
-    def save_chat(self, chat: MiniChat) -> None:
-        self.chats[chat.chat_id] = Chat(**chat.model_dump())
+    def save_chat(self, user_id: str, chat: MiniChatBase) -> MiniChat:
+        
+        chat_id = self.temp_chat_ids.get(user_id)
+        if chat_id is None:
+            chat_id = self.generate_new_chat_id()
+        else:
+            del self.temp_chat_ids[user_id]
+        
+        self.chats[chat_id] = Chat(chat_id=chat_id, **chat.model_dump())
+        return self.chats[chat_id]
     
     @auto_save
     def update_chat(self, user_id: str, chat_id: str, target: Literal["messages", "submits"], item: SubmitImageMessage | Message) -> None:

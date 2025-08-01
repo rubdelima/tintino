@@ -6,6 +6,9 @@ import numpy as np
 import app.api_handler as handler
 import shutil
 import os
+import uuid
+import mimetypes
+from typing import Optional
 from PIL import Image
 
 

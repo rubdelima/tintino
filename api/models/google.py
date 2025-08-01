@@ -2,7 +2,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from google import genai
 from dotenv import load_dotenv
 import os
-from api.schemas.llm import ChatResponse, SubmitImageResponse
+from api.schemas.llm import NewChat, ContinueChat, SubmitImageResponse
 from api.utils.logger import get_logger
 from api.constraints import config
 
@@ -23,7 +23,8 @@ llm = ChatGoogleGenerativeAI(
 )
 logger.info(f"Modelo {gemini_model} carregado com sucesso.")
 
-new_chat_llm = llm.with_structured_output(ChatResponse)
+new_chat_llm = llm.with_structured_output(NewChat)
+continue_chat_llm = llm.with_structured_output(ContinueChat)
 submit_llm = llm.with_structured_output(SubmitImageResponse)
 
 logger.info("Configurando cliente GenAI com a chave da API do Gemini")

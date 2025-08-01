@@ -1,15 +1,15 @@
 import firebase_admin
 from firebase_admin import credentials, firestore, storage #type:ignore
-from google.cloud.firestore_v1 import ArrayUnion, FieldFilter #type:ignore
+from google.cloud.firestore_v1 import FieldFilter #type:ignore
 from fastapi import UploadFile, HTTPException
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from api.database.interface import DatabaseInterface
 from api.schemas.users import User, CreateUser, UserDB, LoginHandler
-from api.schemas.messages import Chat, MiniChat, SubmitImageMessage, Message
-from api.utils import get_mime_extension
-
+from api.schemas.messages import Chat, ChatItems, MiniChatBase, MiniChat, SubmitImageMessage, Message
+from api.utils import get_mime_extension, generate_filename
 from api.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -30,6 +30,7 @@ class FirebaseDB(DatabaseInterface):
 
             self.db = firestore.client()
             self.bucket = storage.bucket()
+            self.temp_chat_ids = {}
 
         except Exception as e:
             logger.error(f"Erro ao inicializar o Firebase: {e}")
@@ -97,64 +98,134 @@ class FirebaseDB(DatabaseInterface):
         query = chats_ref.\
             where(FieldFilter('user_id', '==', user_id)).\
             order_by('last_update', direction=firestore.Query.DESCENDING)
-
+        
         user_chats = [MiniChat(**doc.to_dict()) for doc in query.stream()]
         return user_chats
+    
+    def get_chat_items(self, chat_id: str) -> ChatItems:
+        query = self.db.collections("messages").\
+            where(FieldFilter('chat_id', '==', chat_id)).\
+            order_by('message_index', direction=firestore.Query.ASCENDING).\
+            select(["paint_image", "text_voice", "image"])
+        
+        chat_items = [doc.to_dict() for doc in query.stream()]
 
-    async def store_archive(self, user_id: str, file: UploadFile) -> str:
+        return ChatItems(
+            history="\n".join(item["text_voice"] for item in chat_items),
+            painted_items=", ".join(item["paint_image"] for item in chat_items),
+            last_image=chat_items[-1]["image"]
+        )
+    
+    def upload_archive(self, file_bytes:bytes, blob_path:str, mime_type) ->str:
+        blob = self.bucket.blob(blob_path)
+        
+        blob.upload_from_string(
+            file_bytes,
+            content_type=mime_type
+        )
+        
+        blob.make_public()
+        
+        logger.info(f"Arquivo salvo/sobrescrito para o Cloud Storage (Firebase) em: {blob.public_url}")
+        
+        return blob.public_url
+    
+    async def store_user_archive(self, user_id: str, file: UploadFile) -> str:
         try:
             content, mime, extension = await get_mime_extension(file)
             
             file_id = str(uuid.uuid4())
             blob_name = f"archives/{user_id}/{file_id}{extension}"
         
-            blob = self.bucket.blob(blob_name)
-
-            blob.upload_from_string(
-                content,
-                content_type=mime
-            )
-
-            blob.make_public()
-
-            logger.info(
-                f"Arquivo salvo no Cloud Storage em: {blob.public_url}")
-            
-            return blob.public_url
+            return self.upload_archive(content, blob_name, mime)
 
         except Exception as e:
             logger.error(f"Erro ao salvar arquivo no Cloud Storage: {e}")
             raise e
+        
+    def upload_generated_archive(
+        self, 
+        file_bytes: bytes, 
+        destination_path: str, 
+        mime_type: str,
+        base_filename: Optional[str] = None
+    ) -> str:
+    
+        filename = generate_filename(mime_type, base_filename)
+        blob_name = f"{destination_path}/{filename}"
+        
+        try:
+            return self.upload_archive(file_bytes, blob_name, mime_type)
+        except Exception as e:
+            logger.error(f"Erro ao fazer upload do arquivo gerado: {e}")
+            raise e
 
-    def get_chat(self, chat_id: str, user_id: str) -> Chat:
-        doc_ref = self.db.collection('chats').document(chat_id)
-        chat_doc = doc_ref.get()
-
+    def assert_chat_exists(self, chat_id: str, user_id: str) -> tuple[firestore.DocumentReference, MiniChat]:
+        chat_ref = self.db.collection('chats').document(chat_id)
+        chat_doc = chat_ref.get()
+        
         if not chat_doc.exists:
-            raise ValueError("Chat not found")
+            raise HTTPException(status_code=404, detail="Chat not found")
 
         chat_data = chat_doc.to_dict()
         if chat_data.get('user_id') != user_id:
-            raise ValueError("Unauthorized access")
+            raise HTTPException(status_code=403, detail="Unauthorized access")
+        
+        return chat_ref, MiniChat(**chat_data)
+    
+    def get_chat(self, chat_id: str, user_id: str) -> Chat:
+        chat_ref, chat_data = self.assert_chat_exists(chat_id, user_id)
 
-        return Chat(**chat_data)
+        messages_query = self.db.collection('messages').\
+            where(FieldFilter('chat_id', '==', chat_id)).\
+            order_by('message_index', direction=firestore.Query.ASCENDING)
+        
+        submissions_query = self.db.collection('submits').\
+            where(FieldFilter('chat_id', '==', chat_id)).\
+            order_by('message_index', direction=firestore.Query.ASCENDING)
 
-    def save_chat(self, chat: MiniChat) -> None:
-        self.db.collection('chats').document(
-            chat.chat_id).set(chat.model_dump())
+        return Chat(
+            messages=[Message(**doc.to_dict()) for doc in messages_query.stream()],
+            subimits=[SubmitImageMessage(**doc.to_dict()) for doc in submissions_query.stream()],
+            **chat_data.model_dump()
+        )
+    
+    def generate_new_chat_id(self) ->str:
+        while self.db.collection('chats').document(chat_id := str(uuid.uuid4())).get().exists:
+            pass
+        return chat_id
+
+    def get_new_chat_id(self, user_id: str) -> str:
+        chat_id = self.generate_new_chat_id()
+        self.temp_chat_ids[user_id] = chat_id
+        return chat_id
+
+    def save_chat(self, user_id :str, chat: MiniChatBase) -> MiniChat:
+        chat_json = chat.model_dump()
+        
+        chat_json['user_id'] = user_id
+        
+        chat_id = self.temp_chat_ids.get(user_id)
+        if chat_id is None:
+            chat_id = self.generate_new_chat_id()
+        else:
+            del self.temp_chat_ids[user_id]
+        chat_json['chat_id'] = chat_id
+        
+        chat_json['last_update'] = datetime.now(tz=timezone.utc).isoformat()
+        
+        self.db.collection('chats').document(chat_json['chat_id']).set(chat_json)
+        
+        return MiniChat(**chat_json)
 
     def update_chat(self, user_id: str, chat_id: str, target: str, item: SubmitImageMessage | Message) -> None:
-        doc_ref = self.db.collection('chats').document(chat_id)
+        doc_ref, doc_data = self.assert_chat_exists(chat_id, user_id)
 
-        chat_doc = doc_ref.get()
+        doc_ref.update({'last_update': datetime.now(tz=timezone.utc).isoformat()})
         
-        if not chat_doc.exists:
-            raise ValueError("Chat not found")
+        message_id = str(uuid.uuid4())
         
-        if chat_doc.to_dict().get('user_id') != user_id:
-            raise ValueError("Unauthorized access")
-
-        doc_ref.update({
-            target: ArrayUnion([item.model_dump()]),
-            'last_update': datetime.now(tz=timezone.utc).isoformat()
-        })
+        item_json = item.model_dump()
+        item_json["chat_id"] = chat_id
+        
+        self.db.collection(target).document(message_id).set(item_json)

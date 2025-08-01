@@ -3,6 +3,8 @@ from google.genai import types
 import os
 from api.models.google import google_client
 from api.constraints import config
+from api.database import db
+from typing import Optional
 
 voice_name = config.get("Gemini", {}).get("voice_name", "Kore")  # type:ignore
 
@@ -13,7 +15,7 @@ def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
       wf.setframerate(rate)
       wf.writeframes(pcm)
 
-def generate_text_to_voice(prompt: str, chat_id: str, message_id: int, feedback:bool=False) -> str:
+def generate_text_to_voice(prompt: str, user_id:str, chat_id: Optional[str] = None, message_id: Optional[int] = None, feedback:bool=False) -> str:
    response = google_client.models.generate_content(
       model="gemini-2.5-flash-preview-tts",
       contents=prompt,
@@ -29,16 +31,12 @@ def generate_text_to_voice(prompt: str, chat_id: str, message_id: int, feedback:
       )
    )
    
-   data = response.candidates[0].content.parts[0].inline_data.data #type:ignore
+   audio_part = response.candidates[0].content.parts[0] # type:ignore
+   destination_path = f"{user_id}/{chat_id}/{message_id}/audio" if chat_id and (message_id is not None) else f"{user_id}/audio"
    
-   if feedback:
-        filename = f'./temp/{chat_id}/{message_id}/feedback.wav'
-        if os.path.exists(filename):
-           os.remove(filename)
-        
-   else:
-     filename= f'./temp/{chat_id}/{message_id}/history.wav'
-   
-   wave_file(filename, data)
-   
-   return filename
+   return db.upload_generated_archive(
+       audio_part.inline_data.data, # type:ignore
+       destination_path=destination_path,
+       mime_type=audio_part.inline_data.mime_type, # type:ignore
+       base_filename="feedback" if  feedback else None
+   )

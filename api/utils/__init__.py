@@ -62,4 +62,15 @@ async def store_temp_file(file: UploadFile) -> tuple[str, str]:
     file_path.write_bytes(content)
     
     return str(file_path), mime
+
+def generate_filename(mime_type: str, base_filename: Optional[str]) -> str:
+
+    if base_filename is None:
+        base_filename = str(uuid.uuid4())
     
+    extension = mimetypes.guess_extension(mime_type)
+    
+    if not extension:
+        extension = '.bin'
+        
+    return f"{base_filename}{extension}"
