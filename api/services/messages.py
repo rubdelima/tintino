@@ -101,7 +101,14 @@ async def submit_image(chat_id: str, target: str, image_file: UploadFile) -> Sub
     
     return result
     
-def generate_feedback_audio(result: SubmitImageResponse, feedback_audio:str, user_id:str, chat_id: str, message_id: int) -> SubmitImageMessage:
+def     generate_feedback_audio(
+        result: SubmitImageResponse, 
+        feedback_audio:str, 
+        user_id:str, 
+        chat_id: str, 
+        message_id: int,
+        image :Optional[str] = None) -> SubmitImageMessage:
+    
     start_time = time.time()
     
     feedback_audio = generate_text_to_voice(feedback_audio + result.feedback, user_id, chat_id, message_id, True)
@@ -109,10 +116,12 @@ def generate_feedback_audio(result: SubmitImageResponse, feedback_audio:str, use
     logger.debug(f"Áudio de feedback gerado em {time.time() - start_time:.2f} segundos.")
     
     logger.debug(f"Salvando feedback de imagem para o chat {chat_id} e mensagem {message_id}")
+    
     submit_message =  SubmitImageMessage(
         message_index=message_id,
         audio=feedback_audio,
-        data = result
+        data = result,
+        image=image
     )
     
     db.update_chat(user_id, chat_id, 'messages', submit_message)

@@ -22,4 +22,5 @@ def history_page(mini_chat: Chat, user_id: Optional[str] = None):
                     response = submit_drawing(draw_result.image_data, chat.chat_id, message.message_index)
                     st.audio(response.audio, format="audio/wav", start_time=0, autoplay=True)
             else:
-                st.image(chat.subimits[index].image, use_container_width=True)
+                if len(chat.subimits) > index and (image := chat.subimits[index].image):
+                    st.image(image, use_container_width=True)

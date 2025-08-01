@@ -66,15 +66,17 @@ async def submit_image_api(chat_id:str, image: UploadFile = File(..., media_type
         
         result = await submit_image(chat_id, chat.messages[-1].paint_image, image)
         
+        image_path = None
         if result.is_correct:
             logger.info(f"Imagem submetida corretamente para o chat: {chat_id}, gerando nova mensagem.")
+            image_path = await db.store_user_archive(user_id, image)
             feedback_audio = "Fale de uma maneira energética, elogiando o desenho da criança com essas palavras: "
             continue_chat(user_id, chat_id, message_index + 1)
         else:
             logger.info(f"Imagem submetida incorretamente para o chat: {chat_id}, gerando feedback.")
             feedback_audio = "Fale de uma maneira apasiguadora, incentivando a criança a melhorar seu desenho com essas palavras: "
             
-        feedback = generate_feedback_audio(result, feedback_audio, user_id, chat_id, message_index)
+        feedback = generate_feedback_audio(result, feedback_audio, user_id, chat_id, message_index, image_path)
         
         return feedback
     
