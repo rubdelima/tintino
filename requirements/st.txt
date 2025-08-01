@@ -3,3 +3,5 @@ pydantic
 streamlit
 streamlit-drawable-canvas
 tomlkit
+python-magic-bin
+libmagic

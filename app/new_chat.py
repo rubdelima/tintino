@@ -1,5 +1,5 @@
 import streamlit as st
-import app.api_handler as handler
+import app.api_handler.chat as handler
 import os
 
 st.markdown("""

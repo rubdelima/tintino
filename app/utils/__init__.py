@@ -1,26 +1,8 @@
-from api.schemas.messages import Chat, SubmitImageMessage
-import glob
-import json
+from api.schemas.messages import SubmitImageMessage
 import streamlit as st
 import numpy as np
-import app.api_handler as handler
-import shutil
-import os
-import uuid
-import mimetypes
-from typing import Optional
+import app.api_handler.chat as handler
 from PIL import Image
-
-
-def get_chats() -> list[Chat]:
-    chat_files = glob.glob("temp/*/chat.json")
-    chats = []
-    for chat_file in chat_files:
-        with open(chat_file, "r", encoding="utf-8") as f:
-            chat_data = Chat(**json.load(f))
-            chats.append(chat_data)
-    
-    return chats
 
 def submit_drawing(image : 'np.ndarray', chat_id: str, message_id: int) -> SubmitImageMessage:
     with st.spinner("Submitting image..."):

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPAuthorizationCredentials
+from typing import List
 
-from api.schemas.messages import Chat, SubmitImageMessage, SubmitImageHandler
+from api.schemas.messages import Chat, MiniChat, SubmitImageMessage, SubmitImageHandler
 from api.services.chat import new_chat, continue_chat
 from api.utils.logger import get_logger
 from api.services.messages import submit_image, generate_feedback_audio
@@ -24,6 +25,19 @@ async def create_chat(voice_audio : UploadFile = File(..., media_type="audio/*")
         raise http_exc
     except Exception as e:
         logger.error(f"Erro ao criar chat: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@router.get("/", response_model=List[MiniChat], status_code=200)
+async def get_chats(credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
+    user_id = credentials.credentials
+    try:
+        user = db.get_user(user_id)
+        return user.chats
+    except HTTPException as http_exc:
+        logger.error(f"Erro ao buscar chats: {http_exc.detail}")
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Erro ao buscar chats: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/{chat_id}", response_model=Chat, status_code=200)
