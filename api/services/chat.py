@@ -14,16 +14,20 @@ from typing import Union, List
 from api.schemas.llm import NewChat
 from api.database import db
 from datetime import datetime, timezone
+from api.models.speech_to_text.utils import prepare_audio_file
 
 logger = get_logger(__name__)
 
 os.makedirs('./temp', exist_ok=True)
 
 async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
-    # Trasncrição de Áudio    
+    # Trasncrição de Áudio
+    #TODO: Sempre está achando que é outro formato mesmo sendo WAV, futuramente resolver !
+    audio_path = await prepare_audio_file(audio_file)
     logger.debug("Transcrevendo áudio para texto...")
     start_time = time.time()
-    instruction = transcribe_audio(audio_file)
+    instruction = transcribe_audio(audio_path)
+    audio_path.unlink(missing_ok=True)
     logger.debug(f"Transcrição concluída em {time.time() - start_time:.2f} segundos.")
     
     # Geração de História

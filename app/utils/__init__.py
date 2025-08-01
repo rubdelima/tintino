@@ -10,7 +10,7 @@ from pathlib import Path
 def submit_drawing(image: 'np.ndarray', chat_id: str, message_id: int, user_id: Optional[str] = None) -> SubmitImageMessage:
     with st.spinner("Submitting image..."):
         
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=True) as temp_file:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
             temp_path = Path(temp_file.name)
             
             pil_image = Image.fromarray(image)
@@ -18,7 +18,8 @@ def submit_drawing(image: 'np.ndarray', chat_id: str, message_id: int, user_id: 
             
             pil_image.save(temp_path)
             del pil_image
-            
+        
+        try:
             print(f"Submitting image for chat {chat_id}, message {message_id} at {temp_path}")
             
             response = handler.submit_image(
@@ -27,4 +28,12 @@ def submit_drawing(image: 'np.ndarray', chat_id: str, message_id: int, user_id: 
                 user_id=user_id
             )
         
-        return response
+            return response
+        
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except (OSError, PermissionError):
+                    st.error("Failed to delete temporary image file. It may be in use by another process.")
+                    print(f"Failed to delete temporary file: {temp_path}")

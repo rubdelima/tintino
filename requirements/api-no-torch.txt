@@ -14,3 +14,5 @@ python-magic-bin
 firebase-admin
 libmagic
 python-multipart
+pydantic[email]
+pydub

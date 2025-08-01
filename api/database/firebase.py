@@ -20,7 +20,7 @@ class FirebaseDB(DatabaseInterface):
             cred = credentials.Certificate("firebase.json")
 
             project_id = cred.project_id
-            storage_bucket_url = f"{project_id}.appspot.com"
+            storage_bucket_url = f"{project_id}.firebasestorage.app"
 
             firebase_admin.initialize_app(cred, {
                 'storageBucket': storage_bucket_url
@@ -179,15 +179,17 @@ class FirebaseDB(DatabaseInterface):
 
         messages = list(self.db.collection('messages').\
             where(filter=FieldFilter('chat_id', '==', chat_id)).stream())
-        messages.sort(key=lambda x: x.get('message_index', 0))
+        messages = [Message(**doc.to_dict()) for doc in messages]
+        messages.sort(key=lambda x: x.message_index)
         
-        submissions = list(self.db.collection('submits').\
+        subimits = list(self.db.collection('submits').\
             where(filter=FieldFilter('chat_id', '==', chat_id)).stream())
-        submissions.sort(key=lambda x: x.get('message_index', 0))
+        subimits = [SubmitImageMessage(**doc.to_dict()) for doc in subimits]
+        subimits.sort(key=lambda x: x.message_index)
 
         return Chat(
-            messages=[Message(**doc.to_dict()) for doc in messages],
-            subimits=[SubmitImageMessage(**doc.to_dict()) for doc in submissions],
+            messages=messages,
+            subimits=subimits,
             **chat_data.model_dump()
         )
     

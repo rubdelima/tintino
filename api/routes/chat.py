@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPAuthorizationCredentials
 from typing import List
+import traceback
 
 from api.schemas.messages import Chat, MiniChat, SubmitImageMessage, SubmitImageHandler
 from api.services.chat import new_chat, continue_chat
@@ -14,7 +15,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 @router.post("/", response_model=Chat, status_code=201)
-async def create_chat(voice_audio : UploadFile = File(..., media_type="audio/*"), credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
+async def create_chat(voice_audio : UploadFile, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
     user_id = credentials.credentials
     try:
         chat = await new_chat(user_id, voice_audio) #type:ignore
@@ -25,6 +26,7 @@ async def create_chat(voice_audio : UploadFile = File(..., media_type="audio/*")
         raise http_exc
     except Exception as e:
         logger.error(f"Erro ao criar chat: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/", response_model=List[MiniChat], status_code=200)
@@ -38,6 +40,7 @@ async def get_chats(credentials: HTTPAuthorizationCredentials = Depends(security
         raise http_exc
     except Exception as e:
         logger.error(f"Erro ao buscar chats: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/{chat_id}", response_model=Chat, status_code=200)
@@ -52,6 +55,7 @@ async def get_chat(chat_id: str, credentials: HTTPAuthorizationCredentials = Dep
         raise http_exc
     except Exception as e:
         logger.error(f"Erro ao buscar chat: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/{chat_id}/submit_image", response_model=SubmitImageMessage, status_code=201)
@@ -86,4 +90,5 @@ async def submit_image_api(chat_id:str, image: UploadFile = File(..., media_type
     
     except Exception as e:
         logger.error(f"Erro ao submeter imagem: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")

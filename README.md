@@ -63,6 +63,8 @@ Dependendo do seu hardware, instale as dependências a partir do arquivo apropri
   pip install -r requirements/api.txt
   ```
 
+Instalar o ffmpeg, se usar o conda : ... 
+
 ## Configuração de variáveis de ambiente
 
 Crie um arquivo `.env` na raiz do projeto e adicione sua chave da API do Google Gemini e da OpenAI (para usar o whisper via API):

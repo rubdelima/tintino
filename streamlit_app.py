@@ -16,9 +16,9 @@ try:
     st.logo("./assets/images/icon.png", size="large")
     
     from app.history import history_page
-    from app.api_handler import get_chats
+    from app.utils.cache import get_user_chats
     
-    chats = get_chats()
+    chats = get_user_chats()
     
     pages = {
         "Nova História": [
@@ -42,7 +42,7 @@ try:
     pg = st.navigation(pages)
     pg.run()
     
-    if "redirect_chat" in st.session_state:
+    if "redirect_chat" in st.session_state and st.session_state["redirect_chat"]:
         chat_id = st.session_state["redirect_chat"]
         st.session_state["redirect_chat"] = None
         st.switch_page(chat_id)

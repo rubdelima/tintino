@@ -1,6 +1,8 @@
+import io
 import os
 import requests
 from typing import List, Optional
+import uuid
 
 from app.api_handler.utils import get_mime_from_path, API_URL, DEFAULT_USER
 from api.schemas.messages import SubmitImageMessage, Chat, MiniChat
@@ -19,9 +21,10 @@ def get_chats(user_id : Optional[str] = None) -> List[MiniChat]:
     
     raise Exception(f"Failed to retrieve chats: {response.status_code} - {response.text}")
 
-def create_chat(audio_path: str, user_id : Optional[str] = None ) -> Chat:
-    """Create a new chat session."""
-    content, mime, _ = get_mime_from_path(audio_path)
+def create_chat(audio_bytes: bytes, user_id: Optional[str] = None) -> Chat:
+    """Create a new chat session."""    
+    audio_file = io.BytesIO(audio_bytes)
+    audio_file.name = f"audio_{uuid.uuid4()}.wav"
     
     response = requests.post(
         f"{API_URL}/api/chat/",
@@ -29,7 +32,7 @@ def create_chat(audio_path: str, user_id : Optional[str] = None ) -> Chat:
             "Authorization": f"Bearer {user_id if user_id else DEFAULT_USER}"
         },
         files={
-            "voice_audio": (os.path.basename(audio_path), content, mime)
+            "voice_audio": (audio_file.name, audio_file, "audio/wav")
         }
     )
     
