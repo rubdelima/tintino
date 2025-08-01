@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from api.database import db
 from api.utils.logger import get_logger
 from api.schemas.users import LoginHandler,  CreateUser, UserDB, User
+import traceback
 
 logger = get_logger(__name__)
 
@@ -14,12 +15,9 @@ async def create_user(user_data: CreateUser):
         user = db.create_user(user_data)
         return user
 
-    except ValueError as e:
-        logger.warning(f"O email {user_data.email} já está cadastrado")
-        raise HTTPException(status_code=400, detail=f"Não é possível cadastrar a conta com esse email, tente outro")
-        
     except Exception as e:
         logger.error(f"Erro ao criar usuário: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/login", response_model=User, status_code=200)
@@ -50,5 +48,6 @@ async def get_user(user_id: str):
 
     except Exception as e:
         logger.error(f"Erro ao buscar usuário: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal server error")
     

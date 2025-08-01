@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPAuthorizationCredentials
 
 from api.schemas.messages import Chat, SubmitImageMessage, SubmitImageHandler
@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 @router.post("/", response_model=Chat, status_code=201)
-async def create_chat(voice_audio : UploadFile, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
+async def create_chat(voice_audio : UploadFile = File(..., media_type="audio/*"), credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
     user_id = credentials.credentials
     try:
         chat = await new_chat(user_id, voice_audio) #type:ignore
@@ -41,7 +41,7 @@ async def get_chat(chat_id: str, credentials: HTTPAuthorizationCredentials = Dep
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/{chat_id}/submit_image", response_model=SubmitImageMessage, status_code=201)
-async def submit_image_api(chat_id:str, image: UploadFile, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
+async def submit_image_api(chat_id:str, image: UploadFile = File(..., media_type="image/*"), credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
     """Submit an image for a specific chat."""
     try:
         user_id = credentials.credentials

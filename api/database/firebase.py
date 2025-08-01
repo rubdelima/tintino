@@ -40,21 +40,21 @@ class FirebaseDB(DatabaseInterface):
     # --- User Functions ---
 
     def create_user(self, temp_user: CreateUser) -> UserDB:
-        user_id = str(uuid.uuid4())
+        email_user = list(self.db.collection('users').\
+            where(filter=FieldFilter('email', '==', temp_user.email)).\
+            limit(1).stream())
+        
+        if email_user:
+            logger.warning(f"Usuário com email {temp_user.email} já existe : em {email_user[0].id}")
+            raise HTTPException(status_code=400, detail="Email já cadastrado.")
+
+        while  self.db.collection('users').document(user_id := str(uuid.uuid4())).get().exists:
+            pass
+
         user = UserDB(
             user_id=user_id,
             **temp_user.model_dump(),
         )
-        
-        self.db.collection('users').\
-            where(FieldFilter('email', '==', user.email)).\
-            limit(1)
-        
-        existing_users = list(self.db.collection('users').stream())
-
-        if existing_users:
-            logger.warning(f"Usuário com email {user.email} já existe.")
-            raise ValueError("Email já cadastrado.")
         
         self.db.collection('users').document(user_id).set(user.model_dump())
         logger.info(f"Usuário criado no Firestore com ID: {user_id}")
@@ -64,8 +64,8 @@ class FirebaseDB(DatabaseInterface):
         users_ref = self.db.collection('users')
         
         query = users_ref.\
-            where(FieldFilter('email', '==', login_handler.email)).\
-                where(FieldFilter('password', '==', login_handler.password)).\
+            where(filter=FieldFilter('email', '==', login_handler.email)).\
+                where(filter=FieldFilter('password', '==', login_handler.password)).\
             limit(1)
 
         results = list(query.stream())
@@ -96,20 +96,21 @@ class FirebaseDB(DatabaseInterface):
         chats_ref = self.db.collection('chats')
         
         query = chats_ref.\
-            where(FieldFilter('user_id', '==', user_id)).\
-            order_by('last_update', direction=firestore.Query.DESCENDING)
-        
+            where(filter=FieldFilter('user_id', '==', user_id))
+                    
         user_chats = [MiniChat(**doc.to_dict()) for doc in query.stream()]
+        user_chats.sort(key=lambda x: x.last_update, reverse=True)
+        
         return user_chats
     
     def get_chat_items(self, chat_id: str) -> ChatItems:
         query = self.db.collections("messages").\
-            where(FieldFilter('chat_id', '==', chat_id)).\
-            order_by('message_index', direction=firestore.Query.ASCENDING).\
-            select(["paint_image", "text_voice", "image"])
-        
+            where(filter=FieldFilter('chat_id', '==', chat_id)).\
+            select(["message_index", "paint_image", "text_voice", "image"])
+                
         chat_items = [doc.to_dict() for doc in query.stream()]
-
+        chat_items.sort(key=lambda x: x['message_index'])
+        
         return ChatItems(
             history="\n".join(item["text_voice"] for item in chat_items),
             painted_items=", ".join(item["paint_image"] for item in chat_items),
@@ -176,17 +177,17 @@ class FirebaseDB(DatabaseInterface):
     def get_chat(self, chat_id: str, user_id: str) -> Chat:
         chat_ref, chat_data = self.assert_chat_exists(chat_id, user_id)
 
-        messages_query = self.db.collection('messages').\
-            where(FieldFilter('chat_id', '==', chat_id)).\
-            order_by('message_index', direction=firestore.Query.ASCENDING)
+        messages = list(self.db.collection('messages').\
+            where(filter=FieldFilter('chat_id', '==', chat_id)).stream())
+        messages.sort(key=lambda x: x.get('message_index', 0))
         
-        submissions_query = self.db.collection('submits').\
-            where(FieldFilter('chat_id', '==', chat_id)).\
-            order_by('message_index', direction=firestore.Query.ASCENDING)
+        submissions = list(self.db.collection('submits').\
+            where(filter=FieldFilter('chat_id', '==', chat_id)).stream())
+        submissions.sort(key=lambda x: x.get('message_index', 0))
 
         return Chat(
-            messages=[Message(**doc.to_dict()) for doc in messages_query.stream()],
-            subimits=[SubmitImageMessage(**doc.to_dict()) for doc in submissions_query.stream()],
+            messages=[Message(**doc.to_dict()) for doc in messages],
+            subimits=[SubmitImageMessage(**doc.to_dict()) for doc in submissions],
             **chat_data.model_dump()
         )
     

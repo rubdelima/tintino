@@ -1,6 +1,7 @@
 [Logger]
 enable = true
 level = "debug"
+full_logs = false
 stream_handler = true
 file_handler = true
 file_path = "louie.log"

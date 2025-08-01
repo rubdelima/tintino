@@ -11,6 +11,12 @@ logger_cfg = config.get("Logger", {})
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
+class RestrictedLoggerFilter(logging.Filter):
+    """Permite apenas loggers que comecem com 'api.' ou 'uvicorn.'."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.name.startswith("api.") or record.name.startswith("uvicorn.")
+
 # Se ativado, aplica a configuração avançada
 if logger_cfg.get("enable", False):
     # 1) Nível de log
@@ -68,11 +74,25 @@ if logger_cfg.get("enable", False):
             "encoding":  "utf-8",
         },
     }
+    
+    # 6) Adiciona o filtro de restrição
+    FULL_LOGS = logger_cfg.get("full_logs", True)
+    if not FULL_LOGS:
+        filter_instance = RestrictedLoggerFilter()
+        for handler_cfg in handlers.values():
+            filters = handler_cfg.setdefault("filters", [])
+            if isinstance(filters, list):
+                filters.append("restricted")
 
-    # 6) Monta o dictConfig
+    # 7) Monta o dictConfig
     LOGGING = {
         "version":                  1,
         "disable_existing_loggers": False,
+        "filters": {
+            "restricted": {
+                "()": RestrictedLoggerFilter,
+            },
+        },
         "formatters": {
             "console": console_fmt,
             "file": {
