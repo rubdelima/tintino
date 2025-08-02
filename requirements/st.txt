@@ -3,7 +3,6 @@ pydantic
 streamlit
 streamlit-drawable-canvas
 tomlkit
-python-magic-bin
-libmagic
+python-magic
 pydantic[email]
 emoji

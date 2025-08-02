@@ -1,0 +1,50 @@
+services:
+  api:
+    build: 
+      context: .
+      dockerfile: docker/Dockerfile.api
+      target: api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./temp:/app/temp
+      - ./assets:/app/assets
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    networks:
+      - louie-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+      target: frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    volumes:
+      - ./assets:/app/assets
+    environment:
+      - PYTHONPATH=/app
+      - API_BASE_URL=http://api:8000
+    networks:
+      - louie-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - louie-network
+
+networks:
+  louie-network:
+    driver: bridge

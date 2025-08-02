@@ -4,7 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router as api_router
 
-app = FastAPI()
+app = FastAPI(
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
+)
 
 app.add_middleware(
     CORSMiddleware,

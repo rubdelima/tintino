@@ -1,23 +1,5 @@
-numpy<2
-fastapi
 openai-whisper
-uvicorn
-python-dotenv
-pydantic
-google-genai
-langchain
-langchain-community
-langchain-google-genai
---extra-index-url https://download.pytorch.org/whl/cu121
 torch==2.4.0+cu121
 torchvision==0.19.0+cu121
 torchaudio==2.4.0+cu121
-tomlkit
-colorlog
-openai
-python-magic-bin
-firebase-admin
-libmagic
-python-multipart
-pydantic[email]
-pydub
+--extra-index-url https://download.pytorch.org/whl/cu121
