@@ -13,3 +13,4 @@ appdata/
 cache/
 .temp
 firebase.json
+deploy-louie.ps1

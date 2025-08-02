@@ -27,3 +27,7 @@ temp/
 .temp/
 .DS_Store
 *.egg-info/
+deploy-louie.ps1
+firebase.json
+secrets/
+.secrets/
