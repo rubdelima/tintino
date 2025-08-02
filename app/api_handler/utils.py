@@ -1,6 +1,7 @@
 import requests
 import mimetypes
 import magic #type:ignore
+import os
 from api.constraints import config
 
 API_SETTINGS = config.get("APISettings", {})
@@ -9,9 +10,11 @@ PORT = API_SETTINGS.get("port", 8000)
 
 DEFAULT_USER = "f4b7b9e2-b26a-480a-ac43-0e085482390f"
 
-API_URL = API_SETTINGS.get("url", False)
+API_URL = os.getenv("API_BASE_URL")
 if not API_URL:
-    API_URL = f"http://{HOST}:{PORT}"
+    API_URL = API_SETTINGS.get("url", False)
+    if not API_URL:
+        API_URL = f"http://{HOST}:{PORT}"
 
 def get_mime_from_path(file_path: str) -> tuple[bytes, str, str]:
     with open(file_path, "rb") as f:

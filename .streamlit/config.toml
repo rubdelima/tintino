@@ -3,3 +3,15 @@ primaryColor = "#3B5A77"
 backgroundColor = "#EAEFF5"
 secondaryBackgroundColor = "#D6E2EC"
 textColor = "#1A1A1A"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+runOnSave = false
+
+[client]
+toolbarMode = "minimal"
+
+[logger]
+level = "info"
