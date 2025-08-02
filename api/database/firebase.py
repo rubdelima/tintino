@@ -1,10 +1,22 @@
 import firebase_admin
 from firebase_admin import credentials, firestore, storage #type:ignore
 from google.cloud.firestore_v1 import FieldFilter #type:ignore
-from fastapi import UploadFile, HTTPException
+from fastapi import HTTPException, UploadFile
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+
+from api.database.interface import DatabaseInterface
+from api.schemas.users import User, CreateUser, UserDB
+from api.schemas.messages import Chat, ChatItems, MiniChatBase, MiniChat, SubmitImageMessage, Message
+from api.utils import get_mime_extension, generate_filename
+from api.utils.logger import get_logger
+from api.constraints import config
+
+logger = get_logger(__name__)
+
+# Obter usuário de teste do config
+TEST_USER = config.get("APISettings", {}).get("test_user", "")
 
 from api.database.interface import DatabaseInterface
 from api.schemas.users import User, CreateUser, UserDB
@@ -51,7 +63,6 @@ class FirebaseDB(DatabaseInterface):
 
     def get_user(self, user_id: str) -> User:
         user_doc = self.db.collection('users').document(user_id).get()
-
         if not user_doc.exists:
             raise ValueError("User not found")
 
@@ -59,6 +70,10 @@ class FirebaseDB(DatabaseInterface):
         return User(**user_data, chats=self.get_user_chats(user_id))
     
     def verify_user(self, user_id: str) -> bool:
+        # Sempre permitir usuário de teste do config
+        if user_id == TEST_USER:
+            return True
+            
         user_doc = self.db.collection('users').document(user_id).get()
         return user_doc.exists
 

@@ -11,10 +11,40 @@ from api.auth import verify_token
 
 logger = get_logger(__name__)
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/chats",
+    tags=["Chats"],
+    responses={
+        401: {"description": "Token de autenticação inválido"},
+        500: {"description": "Erro interno do servidor"}
+    }
+)
 
-@router.post("/", response_model=Chat, status_code=201)
-async def create_chat(voice_audio : UploadFile, user_id: str = Depends(verify_token)):
+@router.post(
+    "/", 
+    response_model=Chat, 
+    status_code=201,
+    summary="Criar novo chat",
+    description="""
+    Inicia uma nova história interativa baseada em áudio.
+    
+    - Recebe um arquivo de áudio com a instrução inicial
+    - Transcreve o áudio e gera a primeira parte da história
+    - Cria elementos visuais para desenho
+    - Retorna o chat completo com primeira mensagem
+    
+    O áudio deve conter uma instrução clara sobre que tipo de história
+    a criança gostaria de ouvir (ex: "uma história sobre dinossauros").
+    """,
+    responses={
+        201: {"description": "Chat criado com sucesso"},
+        400: {"description": "Arquivo de áudio inválido"},
+    }
+)
+async def create_chat(
+    voice_audio: UploadFile, 
+    user_id: str = Depends(verify_token)
+):
     try:
         chat = await new_chat(user_id, voice_audio) #type:ignore
         logger.info(f"Chat de Título: {chat.title} - ID: {chat.chat_id}")
@@ -27,7 +57,22 @@ async def create_chat(voice_audio : UploadFile, user_id: str = Depends(verify_to
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.get("/", response_model=List[MiniChat], status_code=200)
+@router.get(
+    "/", 
+    response_model=List[MiniChat], 
+    status_code=200,
+    summary="Listar chats do usuário",
+    description="""
+    Retorna todos os chats (histórias) do usuário autenticado.
+    
+    - Lista resumida com informações básicas de cada chat
+    - Ordenado por última atualização
+    - Inclui título, emoji e timestamp de cada história
+    """,
+    responses={
+        200: {"description": "Lista de chats retornada com sucesso"},
+    }
+)
 async def get_chats(user_id: str = Depends(verify_token)):
     try:
         user = db.get_user(user_id)
@@ -40,8 +85,28 @@ async def get_chats(user_id: str = Depends(verify_token)):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.get("/{chat_id}", response_model=Chat, status_code=200)
-async def get_chat(chat_id: str, user_id: str = Depends(verify_token)):
+@router.get(
+    "/{chat_id}", 
+    response_model=Chat, 
+    status_code=200,
+    summary="Obter chat específico",
+    description="""
+    Retorna um chat completo com todo o histórico.
+    
+    - Inclui todas as mensagens da história
+    - Contém submissões de desenho e feedback
+    - Verifica se o chat pertence ao usuário autenticado
+    """,
+    responses={
+        200: {"description": "Chat retornado com sucesso"},
+        403: {"description": "Chat não pertence ao usuário"},
+        404: {"description": "Chat não encontrado"},
+    }
+)
+async def get_chat(
+    chat_id: str, 
+    user_id: str = Depends(verify_token)
+):
     try:
         chat = db.get_chat(chat_id, user_id) #type:ignore
         return chat
@@ -53,8 +118,33 @@ async def get_chat(chat_id: str, user_id: str = Depends(verify_token)):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.post("/{chat_id}/submit_image", response_model=SubmitImageMessage, status_code=201)
-async def submit_image_api(chat_id:str, image: UploadFile = File(..., media_type="image/*"), user_id: str = Depends(verify_token)):
+@router.post(
+    "/{chat_id}/submit_image", 
+    response_model=SubmitImageMessage, 
+    status_code=201,
+    summary="Submeter desenho",
+    description="""
+    Permite que a criança submeta um desenho para avaliação.
+    
+    - Analisa se o desenho corresponde ao solicitado na história
+    - Gera feedback positivo e construtivo via áudio
+    - Se correto: salva a imagem e continua a história
+    - Se incorreto: fornece dicas para melhorar
+    
+    A imagem deve estar em formato compatível (JPEG, PNG) e representar
+    o elemento solicitado na última mensagem da história.
+    """,
+    responses={
+        201: {"description": "Desenho submetido e avaliado com sucesso"},
+        400: {"description": "Imagem inválida ou formato não suportado"},
+        404: {"description": "Chat ou mensagem não encontrada"},
+    }
+)
+async def submit_image_api(
+    chat_id: str,
+    image: UploadFile = File(..., description="Arquivo de imagem com o desenho da criança"),
+    user_id: str = Depends(verify_token)
+):
     try:
         chat = db.get_chat(chat_id, user_id)
         message_index = len(chat.subimits)

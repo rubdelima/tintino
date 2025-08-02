@@ -11,9 +11,12 @@ from api.utils.logger import get_logger
 from api.constraints import config
 from api.schemas.messages import MiniChat, ChatItems
 from api.schemas.users import CreateUser
+from api.constraints import config
 from api.utils import get_mime_extension, generate_filename
 
 database_configs = config.get("Database", {})
+# Obter usuário de teste do config
+TEST_USER = config.get("APISettings", {}).get("test_user", "")
 
 logger = get_logger(__name__)
 
@@ -79,6 +82,9 @@ class LocalDatabase(DatabaseInterface):
         return User(**temp_user, chats=self.get_user_chats(user_id))
     
     def verify_user(self, user_id: str) -> bool:
+        # Sempre permitir usuário de teste do config
+        if user_id == TEST_USER:
+            return True
         return user_id in self.users
     
     def get_user_chats(self, user_id: str) -> list[MiniChat]:

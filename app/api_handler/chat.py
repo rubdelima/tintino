@@ -10,7 +10,7 @@ from api.schemas.messages import SubmitImageMessage, Chat, MiniChat
 def get_chats(user_id : Optional[str] = None) -> List[MiniChat]:
     """Retrieve all chats from the API."""
     response = requests.get(
-        f"{API_URL}/api/chat/", 
+        f"{API_URL}/api/chats/", 
         headers={
             "Authorization": f"Bearer {user_id if user_id else DEFAULT_USER}"
         }
@@ -27,7 +27,7 @@ def create_chat(audio_bytes: bytes, user_id: Optional[str] = None) -> Chat:
     audio_file.name = f"audio_{uuid.uuid4()}.wav"
     
     response = requests.post(
-        f"{API_URL}/api/chat/",
+        f"{API_URL}/api/chats/",
         headers={
             "Authorization": f"Bearer {user_id if user_id else DEFAULT_USER}"
         },
@@ -44,7 +44,7 @@ def create_chat(audio_bytes: bytes, user_id: Optional[str] = None) -> Chat:
 def get_chat(chat_id: str, user_id: Optional[str] = None) -> Chat:
     """Retrieve a specific chat by its ID."""
     response = requests.get(
-        f"{API_URL}/api/chat/{chat_id}",
+        f"{API_URL}/api/chats/{chat_id}",
         headers={
             "Authorization": f"Bearer {user_id if user_id else DEFAULT_USER}"
         }
@@ -59,7 +59,7 @@ def submit_image(chat_id: str, image_path: str, user_id: Optional[str] = None) -
     """Submit an image for a specific chat."""
     content, mime, extension = get_mime_from_path(image_path)
     response = requests.post(
-        f"{API_URL}/api/chat/{chat_id}/submit_image",
+        f"{API_URL}/api/chats/{chat_id}/submit_image",
         headers={
             "Authorization": f"Bearer {user_id if user_id else DEFAULT_USER}"
         },
