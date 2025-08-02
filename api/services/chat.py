@@ -15,6 +15,7 @@ from api.schemas.llm import NewChat
 from api.database import db
 from datetime import datetime, timezone
 from api.models.speech_to_text.utils import prepare_audio_file
+import traceback
 
 logger = get_logger(__name__)
 
@@ -38,18 +39,15 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
     assert isinstance(result, NewChat)
     logger.debug(f"Resposta do Gemini recebida em {time.time() - start_time:.2f} segundos. Nome da história: {result.title}")
     
-    # Obter o ID do Chat
-    chat_id = db.get_new_chat_id(user_id)
-    
-    # Geração de Audio e Imagem
-    image, audio = generate_image_audio(result, user_id, chat_id, 0)
-    
     # Salvando o Chat
     chat = db.save_chat(user_id, MiniChatBase(
         title=result.title,
-        chat_image=image,
+        chat_image=result.shortcode,
         last_update= datetime.now(timezone.utc),
     ))
+    
+    # Geração de Audio e Imagem
+    image, audio = generate_image_audio(result, user_id, chat.chat_id, 0)
     
     # Salvando Mensagem
     logger.debug(f"Salvando nova mensagem no banco de dados para o chat {chat.chat_id}")
@@ -62,6 +60,7 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
         image=image,
         audio=audio
     )    
+    
     db.update_chat(user_id, chat.chat_id, 'messages', message)
     
     return Chat(
@@ -82,6 +81,7 @@ def continue_chat(user_id:str, chat_id: str, message_id: int) -> None:
             
         except Exception as e:
             logger.error(f"Erro ao continuar chat {chat_id}: {str(e)}")
+            logger.error(traceback.format_exc())
     
     thread = threading.Thread(target=_continue_chat_async, daemon=True)
     logger.info(f"Iniciando geração assíncrona da próxima mensagem para o chat: {chat_id}")

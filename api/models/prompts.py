@@ -12,12 +12,15 @@ class NewChat(BaseModel):
     text_voice : str = Field(description="Texto que deverá ser lido para a criança, crie um texto não muito longo, de até 100 palavras")
     intro_voice : str = Field(description="Trecho que será a introdução para iteração da criança, deverá ser um trecho curto de até 10 palavras, que introduza o que a criança deverá desenhar nessa etapa")
     scene_image_description : str = Field(description="Descrição da cena que ilusta a cena da história que está sendo contada")
+    shortcode : str = Field(description="Shortcode que referencia um emoji, qure remeta a um elemento da história que está sendo contada, como por exemplo :art:")
+
 
 - Em title você deverá retornar o título da história, que será usado para dar um nome à história que está sendo contada. Naõ crie um título muito longo, apenas um título curto e interessante de até 4 palavras no máximo.
 - Em paint_image o nome do objeto que deverá ser gerado uma imagem para a criança desenhar/colorir.
 - Em text_voice você deverá retornar o texto que deverá ser lido para a criança, será utilizado um modelo de TTS para falar com a criança. Lmebre-se de criar um texto não muito longo, de até 100 palavras, e que seja interessante para a criança, como se fosse um trecho de uma história. Use um vocabulário simples para uma criança
 - Em intro_voice deverá ser um trecho curto de até 10 palavras que será usado para introduzir a iteração com a criança. Ex: Você pode ajudar o nosso amigo desenhando um <item>?
 - Em scene_image_description você deverá retornar uma descrição da cena que ilustra a cena da história que está sendo contada, será utilizado um modelo de geração de imagem para gerar a imagem da cena, então crie uma descrição detalahada de como é a cena deverá ser gerada. Assuma no prompt que a imagem deveráser gerada numa escala 3:4, ou seja, a imagem deverá ser mais alta do que larga.
+- Em shortcode você deverá retornar um shortcode que referencia um emoji, que remeta a um elemento da história que está sendo contada, como por exemplo :art:, :rocket:, ou seja, sempre iniciam com ":" e terminam com ":". Esse shortcode será usado para identificar a história e o elemento principal da história.
 
 A descrição em scene_image_description deverá ser realmente de uma cenário que englobe todos os elementos do trecho história que está sendo contada, como se fosse uma cena de um filme, com todos os detalhes visuais que você conseguir imaginar.
 
@@ -45,7 +48,9 @@ class ContinueChat(BaseModel):
 
 A criança desenhou os seguintes itens na história: {painted_items}
 
-Você deverá buscar um novo item para a crinaça desenhar que esteja no contexto desse novo trecho da história, e não pode ser repetido
+Você deverá buscar um novo item para a criança desenhar que esteja no contexto desse novo trecho da história, e não pode ser repetido.
+
+Se você quiser pode continuar no cenário da imagem anterior, ou criar um novo, mas lembre-se de não repetir o novo item a ser desenhado.
 """
 
 submit_image_prompt = """

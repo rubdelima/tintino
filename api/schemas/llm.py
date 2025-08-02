@@ -9,6 +9,7 @@ class ContinueChat(BaseModel):
 
 class NewChat(ContinueChat):
     title : str = Field(description="Título da história, deve ser usado para dar um nome à história que está sendo contada.")
+    shortcode : str = Field(description="Shortcode que referencia um emoji, qure remeta a um elemento da história que está sendo contada, como por exemplo :art:")
 
 class SubmitImageResponse(BaseModel):
     is_correct: bool = Field(description="Se o desenho está correto ou não, ou seja, se o desenho representa o que foi pedido na história.")

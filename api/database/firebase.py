@@ -104,7 +104,7 @@ class FirebaseDB(DatabaseInterface):
         return user_chats
     
     def get_chat_items(self, chat_id: str) -> ChatItems:
-        query = self.db.collections("messages").\
+        query = self.db.collection("messages").\
             where(filter=FieldFilter('chat_id', '==', chat_id)).\
             select(["message_index", "paint_image", "text_voice", "image"])
                 

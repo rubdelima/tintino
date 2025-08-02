@@ -45,15 +45,17 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
     logger.debug(f"Itens do chat {chat_id} obtidos")
         
     messages = [
+        AIMessage(content=[{
+            "type": "image_url",
+            "image_url": items.last_image,
+        }]),
         SystemMessage(content=continue_chat_prompt.format(
             history=items.history,
             painted_items=items.painted_items
         )),
-        AIMessage(content=[{
-            "type": "image_url",
-            "image_url": items.last_image,
-        }])
+        HumanMessage(content="Continue a história")
     ]
+        
     
     logger.debug(f"Enviando prompt para o Gemini do chat {chat_id} e mensagem {message_id}")
 
@@ -90,7 +92,7 @@ async def submit_image(chat_id: str, target: str, image_file: UploadFile) -> Sub
     
     messages = [
         SystemMessage(submit_image_prompt.format(doodle_name=target)),
-        HumanMessage(content=[image_message, {"type": "text", "content": f"O meu desenho é de um/uma {target}. O que você achou?"}]),
+        HumanMessage(content=[image_message, f"O meu desenho é de um/uma {target}. O que você achou?"]),
     ]
     
     logger.debug(f"Submetendo nova imagem para o chat: {chat_id}")
@@ -101,7 +103,7 @@ async def submit_image(chat_id: str, target: str, image_file: UploadFile) -> Sub
     
     return result
     
-def     generate_feedback_audio(
+def generate_feedback_audio(
         result: SubmitImageResponse, 
         feedback_audio:str, 
         user_id:str, 
@@ -124,6 +126,6 @@ def     generate_feedback_audio(
         image=image
     )
     
-    db.update_chat(user_id, chat_id, 'messages', submit_message)
+    db.update_chat(user_id, chat_id, 'submits', submit_message)
     
     return submit_message

@@ -6,3 +6,4 @@ tomlkit
 python-magic-bin
 libmagic
 pydantic[email]
+emoji

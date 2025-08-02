@@ -2,11 +2,11 @@ import streamlit as st
 from api.schemas.messages import Chat
 from app.utils.draw_canvas import draw_canvas
 from app.utils import submit_drawing
-import app.api_handler.chat as handler
+from app.utils.cache import get_chat
 from typing import Optional
 
 def history_page(mini_chat: Chat, user_id: Optional[str] = None):
-    chat = handler.get_chat(mini_chat.chat_id, user_id)
+    chat = get_chat(mini_chat.chat_id, user_id)
     
     st.title(chat.title)
 

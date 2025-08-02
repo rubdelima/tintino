@@ -6,6 +6,13 @@ from PIL import Image
 from typing import Optional
 import tempfile
 from pathlib import Path
+import emoji
+
+def get_emoji(shortcode: str) -> str:
+    if  (emoji_str := emoji.emojize(shortcode)) == shortcode:
+        emoji_str = "🎨"
+    
+    return emoji_str
 
 def submit_drawing(image: 'np.ndarray', chat_id: str, message_id: int, user_id: Optional[str] = None) -> SubmitImageMessage:
     with st.spinner("Submitting image..."):

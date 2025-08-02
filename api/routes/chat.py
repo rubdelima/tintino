@@ -66,7 +66,7 @@ async def submit_image_api(chat_id:str, image: UploadFile = File(..., media_type
         chat = db.get_chat(chat_id, user_id)
         message_index = len(chat.subimits)
         
-        logger.info(f"Submetendo desenho {message_index} do chat : {chat}")
+        logger.debug(f"Submetendo desenho {message_index} do chat : {chat.chat_id}")
         
         result = await submit_image(chat_id, chat.messages[-1].paint_image, image)
         

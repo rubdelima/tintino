@@ -17,6 +17,7 @@ try:
     
     from app.history import history_page
     from app.utils.cache import get_user_chats
+    from app.utils import get_emoji
     
     chats = get_user_chats()
     
@@ -32,7 +33,7 @@ try:
         "Ultimas Histórias" : [
             st.Page(
                 lambda chat=chat: history_page(chat), # type: ignore
-                icon= "🎨",
+                icon= get_emoji(chat.chat_image),
                 title= chat.title,
                 url_path= chat.chat_id,
             ) for chat in chats

@@ -1,8 +1,7 @@
 import streamlit as st
 import app.api_handler.chat as handler
-import tempfile
 from app.utils.text import home_intro, home_description
-import os
+from app.utils.cache import add_chat
 
 st.markdown(home_intro)
 
@@ -23,6 +22,7 @@ if submit_button:
             try:
                 assert audio_value is not None, "O áudio não pode ser None"
                 result = handler.create_chat(audio_value.read())
+                add_chat(result)
                 st.session_state["redirect_chat"] = result.chat_id
                 st.rerun()
             
