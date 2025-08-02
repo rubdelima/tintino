@@ -63,32 +63,20 @@ class LocalDatabase(DatabaseInterface):
             } if Path("./temp/archives").exists() else set()
         
     @auto_save
-    def create_user(self, temp_user: CreateUser) -> UserDB:
-        user_id = str(uuid.uuid4())
+    def create_user(self, user_data: CreateUser, user_id: str) -> UserDB:
         user = UserDB(
             user_id=user_id,
-            **temp_user.model_dump(),
+            name=user_data.name
         )
         self.users[user_id] = user.model_dump()
         return user
-    
-    def login_user(self, login_handler: LoginHandler) -> User:
-        temp_user = next((
-            UserDB(**data) for data in self.users.values()
-            if data['email'] == login_handler.email and data['password'] == login_handler.password
-        ), None)
-        
-        if not temp_user:
-            raise ValueError("Invalid email or password")
-        
-        return User(**temp_user.model_dump(), chats=self.get_user_chats(temp_user.user_id))
     
     def get_user(self, user_id: str) -> User:
         temp_user = self.users.get(user_id)
         if not temp_user:
             raise ValueError("User not found")
         
-        return User(**temp_user.model_dump(), chats=self.get_user_chats(user_id))
+        return User(**temp_user, chats=self.get_user_chats(user_id))
     
     def verify_user(self, user_id: str) -> bool:
         return user_id in self.users

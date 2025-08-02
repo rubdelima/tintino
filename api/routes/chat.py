@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from fastapi.security import HTTPAuthorizationCredentials
 from typing import List
 import traceback
 
@@ -8,15 +7,14 @@ from api.services.chat import new_chat, continue_chat
 from api.utils.logger import get_logger
 from api.services.messages import submit_image, generate_feedback_audio
 from api.database import db
-from api.auth import security_bearer
+from api.auth import verify_token
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
 @router.post("/", response_model=Chat, status_code=201)
-async def create_chat(voice_audio : UploadFile, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
-    user_id = credentials.credentials
+async def create_chat(voice_audio : UploadFile, user_id: str = Depends(verify_token)):
     try:
         chat = await new_chat(user_id, voice_audio) #type:ignore
         logger.info(f"Chat de Título: {chat.title} - ID: {chat.chat_id}")
@@ -30,8 +28,7 @@ async def create_chat(voice_audio : UploadFile, credentials: HTTPAuthorizationCr
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/", response_model=List[MiniChat], status_code=200)
-async def get_chats(credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
-    user_id = credentials.credentials
+async def get_chats(user_id: str = Depends(verify_token)):
     try:
         user = db.get_user(user_id)
         return user.chats
@@ -44,9 +41,7 @@ async def get_chats(credentials: HTTPAuthorizationCredentials = Depends(security
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/{chat_id}", response_model=Chat, status_code=200)
-async def get_chat(chat_id: str, credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
-    """Retrieve a specific chat by its ID."""
-    user_id = credentials.credentials
+async def get_chat(chat_id: str, user_id: str = Depends(verify_token)):
     try:
         chat = db.get_chat(chat_id, user_id) #type:ignore
         return chat
@@ -59,10 +54,8 @@ async def get_chat(chat_id: str, credentials: HTTPAuthorizationCredentials = Dep
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/{chat_id}/submit_image", response_model=SubmitImageMessage, status_code=201)
-async def submit_image_api(chat_id:str, image: UploadFile = File(..., media_type="image/*"), credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
-    """Submit an image for a specific chat."""
+async def submit_image_api(chat_id:str, image: UploadFile = File(..., media_type="image/*"), user_id: str = Depends(verify_token)):
     try:
-        user_id = credentials.credentials
         chat = db.get_chat(chat_id, user_id)
         message_index = len(chat.subimits)
         

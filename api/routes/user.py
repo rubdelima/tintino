@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from api.database import db
 from api.utils.logger import get_logger
-from api.schemas.users import LoginHandler,  CreateUser, UserDB, User
+from api.schemas.users import CreateUser, UserDB, User
+from api.auth import verify_token
 import traceback
 
 logger = get_logger(__name__)
@@ -9,10 +10,9 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 @router.post("/create", response_model=UserDB, status_code=201)
-async def create_user(user_data: CreateUser):
-    """Create a new user."""
+async def create_user(user_data: CreateUser, user_id: str = Depends(verify_token)):
     try:
-        user = db.create_user(user_data)
+        user = db.create_user(user_data, user_id)
         return user
 
     except Exception as e:
@@ -20,23 +20,8 @@ async def create_user(user_data: CreateUser):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/login", response_model=User, status_code=200)
-async def login_user(handler: LoginHandler):
-    """Login a user with email and password."""
-    try:
-        user = db.login_user(handler)
-        return user
-    
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
-    
-    except Exception as e:
-        logger.error(f"Erro ao fazer login: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.post("/get_user", response_model=User, status_code=200)
-async def get_user(user_id: str):
-    """Retrieve a user by their ID."""
+@router.get("/me", response_model=User, status_code=200)
+async def get_current_user(user_id: str = Depends(verify_token)):
     try:
         user = db.get_user(user_id)
         return user

@@ -8,7 +8,7 @@ API_SETTINGS = config.get("APISettings", {})
 HOST = API_SETTINGS.get("host", "0.0.0.0")
 PORT = API_SETTINGS.get("port", 8000)
 
-DEFAULT_USER = "f4b7b9e2-b26a-480a-ac43-0e085482390f"
+DEFAULT_USER = API_SETTINGS.get("test_user", "f4b7b9e2-b26a-480a-ac43-0e085482390f")
 
 API_URL = os.getenv("API_BASE_URL")
 if not API_URL:

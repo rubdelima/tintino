@@ -1,30 +1,21 @@
 from abc import ABC, abstractmethod
-from api.schemas.users import User, CreateUser, UserDB, LoginHandler
+from api.schemas.users import User, CreateUser, UserDB
 from api.schemas.messages import Chat, MiniChatBase, MiniChat, SubmitImageMessage, Message, ChatItems
 from fastapi import UploadFile
 from typing import Literal, Optional, Any
 
 class DatabaseInterface(ABC):
     
-    # User Functions
     @abstractmethod
-    def create_user(self, temp_user: CreateUser) -> UserDB:
-        """Create a new user."""
-        pass
-
-    @abstractmethod
-    def login_user(self, login_handler: LoginHandler) -> User:
-        """Log in a user by their email and password."""
+    def create_user(self, user_data: CreateUser, user_id: str) -> UserDB:
         pass
 
     @abstractmethod
     def get_user(self, user_id: str) -> User:
-        """Retrieve a user by their ID."""
         pass
     
     @abstractmethod
     def verify_user(self, user_id: str) -> bool:
-        """Verify if a user exists by their ID."""
         pass
     
     # Chat Functions

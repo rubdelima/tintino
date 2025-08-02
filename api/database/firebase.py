@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from api.database.interface import DatabaseInterface
-from api.schemas.users import User, CreateUser, UserDB, LoginHandler
+from api.schemas.users import User, CreateUser, UserDB
 from api.schemas.messages import Chat, ChatItems, MiniChatBase, MiniChat, SubmitImageMessage, Message
 from api.utils import get_mime_extension, generate_filename
 from api.utils.logger import get_logger
@@ -39,43 +39,15 @@ class FirebaseDB(DatabaseInterface):
 
     # --- User Functions ---
 
-    def create_user(self, temp_user: CreateUser) -> UserDB:
-        email_user = list(self.db.collection('users').\
-            where(filter=FieldFilter('email', '==', temp_user.email)).\
-            limit(1).stream())
-        
-        if email_user:
-            logger.warning(f"Usuário com email {temp_user.email} já existe : em {email_user[0].id}")
-            raise HTTPException(status_code=400, detail="Email já cadastrado.")
-
-        while  self.db.collection('users').document(user_id := str(uuid.uuid4())).get().exists:
-            pass
-
+    def create_user(self, user_data: CreateUser, user_id: str) -> UserDB:
         user = UserDB(
             user_id=user_id,
-            **temp_user.model_dump(),
+            name=user_data.name
         )
         
         self.db.collection('users').document(user_id).set(user.model_dump())
         logger.info(f"Usuário criado no Firestore com ID: {user_id}")
         return user
-
-    def login_user(self, login_handler: LoginHandler) -> User:
-        users_ref = self.db.collection('users')
-        
-        query = users_ref.\
-            where(filter=FieldFilter('email', '==', login_handler.email)).\
-                where(filter=FieldFilter('password', '==', login_handler.password)).\
-            limit(1)
-
-        results = list(query.stream())
-
-        if not results:
-            raise ValueError("Invalid email or password")
-
-        user_data = results[0].to_dict()
-
-        return User(**user_data, chats=self.get_user_chats(user_data['user_id']))
 
     def get_user(self, user_id: str) -> User:
         user_doc = self.db.collection('users').document(user_id).get()

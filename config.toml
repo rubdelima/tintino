@@ -12,6 +12,7 @@ datetime_format = "%Y-%m-%d %H:%M:%S"
 url = false
 host = "localhost"
 port = 8000
+test_user = "f4b7b9e2-b26a-480a-ac43-0e085482390f"
 
 [Whisper]
 local = false # Para usar o Whisper localmente, defina como true, mas caso queira usar via API, defina como false

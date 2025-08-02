@@ -1,39 +1,27 @@
 import requests
 
-from api.schemas.users import LoginHandler, User, UserDB
+from api.schemas.users import User, UserDB, CreateUser
 from app.api_handler.utils import API_URL, DEFAULT_USER
-from pydantic import ValidationError
 
-def create_user(email:str, password:str)->UserDB:
-    try:
-        user = LoginHandler(email=email, password=password)
-    except ValidationError as e:
-        print(f"Validation error!")
-        for err in e.errors():
-            print(f"Campo: {err['loc'][0]}")
-            print(f"Erro: {err['msg']}")
-            print(f"Tipo: {err['type']}")
-            print("="*30, end="\n\n")
-
-        raise ValidationError(*[err['loc'][0] for err in e.errors()])
-
-    response = requests.post(f"{API_URL}/api/users/create", json=user.model_dump())
+def create_user(name: str, token: str) -> UserDB:
+    user_data = CreateUser(name=name)
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    response = requests.post(
+        f"{API_URL}/api/users/create", 
+        json=user_data.model_dump(),
+        headers=headers
+    )
     response.raise_for_status()
     return UserDB(**response.json())
 
-def login_user(email: str, password: str) -> User:
-    try:
-        handler = LoginHandler(email=email, password=password)
-    except ValidationError as e:
-        print(f"Validation error!")
-        for err in e.errors():
-            print(f"Campo: {err['loc'][0]}")
-            print(f"Erro: {err['msg']}")
-            print(f"Tipo: {err['type']}")
-            print("="*30, end="\n\n")
-        raise ValidationError(*[err['loc'][0] for err in e.errors()])
-
-    response = requests.post(f"{API_URL}/api/users/login", json=handler.model_dump())
+def get_current_user(token: str) -> User:
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    response = requests.get(
+        f"{API_URL}/api/users/me",
+        headers=headers
+    )
     response.raise_for_status()
     return User(**response.json())
 
