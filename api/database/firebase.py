@@ -3,6 +3,7 @@ from firebase_admin import credentials, firestore, storage #type:ignore
 from google.cloud.firestore_v1 import FieldFilter #type:ignore
 from fastapi import HTTPException, UploadFile
 import uuid
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -14,6 +15,18 @@ from api.utils.logger import get_logger
 from api.constraints import config
 
 logger = get_logger(__name__)
+
+def get_credentials_file() -> str:
+    possible_paths = [
+        "firebase.json",
+        "/etc/secrets/firebase.json"
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    
+    raise FileNotFoundError("Arquivo firebase.json não encontrado em nenhum dos locais esperados")
 
 # Obter usuário de teste do config
 TEST_USER = config.get("APISettings", {}).get("test_user", "")
@@ -29,7 +42,7 @@ logger = get_logger(__name__)
 class FirebaseDB(DatabaseInterface):
     def __init__(self) -> None:
         try:
-            cred = credentials.Certificate("firebase.json")
+            cred = credentials.Certificate(get_credentials_file())
 
             project_id = cred.project_id
             storage_bucket_url = f"{project_id}.firebasestorage.app"
