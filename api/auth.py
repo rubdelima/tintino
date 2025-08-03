@@ -5,6 +5,7 @@ from api.database import db
 from api.utils.logger import get_logger
 from api.constraints import config
 import json
+from api.database.firebase import get_credentials_file
 
 logger = get_logger(__name__)
 
@@ -13,7 +14,7 @@ DEFAULT_USER = config.get("APISettings", {}).get("test_user", "")
 
 # Obter o project_id do firebase.json para validação
 try:
-    with open('firebase.json', 'r') as f:
+    with open(get_credentials_file(), 'r') as f:
         firebase_config = json.load(f)
         EXPECTED_PROJECT_ID = firebase_config.get('project_id')
 except Exception as e:
