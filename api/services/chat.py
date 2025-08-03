@@ -6,11 +6,12 @@ from api.models.speech_to_text import transcribe_audio
 import time
 from api.services.messages import new_message, generate_image_audio
 import threading
+import asyncio
 import os
 from api.models.prompts import initial_prompt
 from api.models.google import new_chat_llm
 from langchain_core.messages import HumanMessage, SystemMessage
-from typing import Union, List
+from typing import Union, List, Callable, Optional, Awaitable
 from api.schemas.llm import NewChat
 from api.database import db
 from datetime import datetime, timezone
@@ -86,4 +87,41 @@ def continue_chat(user_id:str, chat_id: str, message_id: int) -> None:
     thread = threading.Thread(target=_continue_chat_async, daemon=True)
     logger.info(f"Iniciando geração assíncrona da próxima mensagem para o chat: {chat_id}")
     thread.start()
+
+async def continue_chat_async(user_id: str, chat_id: str, message_id: int, 
+                            callback: Optional[Callable[[Message], Awaitable[None]]] = None) -> Message:
+    """
+    Versão assíncrona do continue_chat que permite callback quando a mensagem é gerada.
+    
+    Args:
+        user_id: ID do usuário
+        chat_id: ID do chat
+        message_id: Índice da nova mensagem
+        callback: Função assíncrona opcional para ser chamada quando a mensagem estiver pronta
+        
+    Returns:
+        Message: A nova mensagem gerada
+    """
+    
+    def _generate_message():
+        try:
+            logger.info(f"Gerando próxima mensagem para o chat: {chat_id}")
+            message = new_message(user_id, chat_id, message_id)
+            logger.info(f"Próxima mensagem gerada com sucesso para o chat: {chat_id}")
+            return message
+            
+        except Exception as e:
+            logger.error(f"Erro ao continuar chat {chat_id}: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise e
+    
+    # Executa a geração em uma thread separada para não bloquear o loop de eventos
+    loop = asyncio.get_event_loop()
+    message = await loop.run_in_executor(None, _generate_message)
+    
+    # Chama o callback se fornecido
+    if callback:
+        await callback(message)
+    
+    return message
     

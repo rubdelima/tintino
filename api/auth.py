@@ -20,33 +20,68 @@ except Exception as e:
     logger.error(f"Erro ao carregar firebase.json: {e}")
     EXPECTED_PROJECT_ID = None
 
+def _verify_token_core(token: str) -> str:
+    """
+    Lógica central de verificação de token, reutilizada por outras funções.
+    
+    Args:
+        token: Token JWT como string
+        
+    Returns:
+        str: ID do usuário se o token for válido
+        
+    Raises:
+        HTTPException: Se o token for inválido
+    """
+    if config.get("Database", {}).get("local", True):
+        # Modo local
+        if not db.verify_user(token):
+            logger.warning(f"Usuário não verificado: {token}")
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        return token
+    else:
+        # Modo Firebase
+        if token == DEFAULT_USER:
+            return token
+            
+        try:
+            decoded_token = auth.verify_id_token(token)
+            
+            # Verificar se o token pertence ao nosso projeto Firebase
+            if EXPECTED_PROJECT_ID and decoded_token.get('aud') != EXPECTED_PROJECT_ID:
+                logger.warning(f"Token de projeto Firebase incorreto. Esperado: {EXPECTED_PROJECT_ID}, Recebido: {decoded_token.get('aud')}")
+                raise HTTPException(status_code=401, detail="Unauthorized - Invalid Firebase project")
+            
+            return decoded_token['uid']
+        except HTTPException:
+            # Re-raise HTTPExceptions para manter o status code correto
+            raise
+        except Exception as e:
+            logger.warning(f"Token Firebase inválido: {e}")
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
 def verify_token_local(credentials: HTTPAuthorizationCredentials = Depends(security_bearer)) -> str:
     token = credentials.credentials
-    if not db.verify_user(token) :
-        logger.warning(f"Usuário não verificado: {token}")
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return token
+    return _verify_token_core(token)
 
 def verify_token_firebase(credentials: HTTPAuthorizationCredentials = Depends(security_bearer)) -> str:
     token = credentials.credentials
-    
-    if token == DEFAULT_USER:
-        return token
-        
-    try:
-        decoded_token = auth.verify_id_token(token)
-        
-        # Verificar se o token pertence ao nosso projeto Firebase
-        if EXPECTED_PROJECT_ID and decoded_token.get('aud') != EXPECTED_PROJECT_ID:
-            logger.warning(f"Token de projeto Firebase incorreto. Esperado: {EXPECTED_PROJECT_ID}, Recebido: {decoded_token.get('aud')}")
-            raise HTTPException(status_code=401, detail="Unauthorized - Invalid Firebase project")
-        
-        return decoded_token['uid']
-    except HTTPException:
-        # Re-raise HTTPExceptions para manter o status code correto
-        raise
-    except Exception as e:
-        logger.warning(f"Token Firebase inválido: {e}")
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    return _verify_token_core(token)
 
 verify_token = verify_token_local if config.get("Database", {}).get("local", True) else verify_token_firebase
+
+def verify_token_string(token: str) -> str:
+    """
+    Verifica um token passado como string (para uso em WebSockets).
+    Reutiliza a mesma lógica das funções de autenticação HTTP.
+    
+    Args:
+        token: Token JWT como string
+        
+    Returns:
+        str: ID do usuário se o token for válido
+        
+    Raises:
+        HTTPException: Se o token for inválido
+    """
+    return _verify_token_core(token)
