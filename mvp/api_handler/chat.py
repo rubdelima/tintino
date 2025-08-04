@@ -4,7 +4,7 @@ import requests
 from typing import List, Optional
 import uuid
 
-from app.api_handler.utils import get_mime_from_path, API_URL, DEFAULT_USER
+from mvp.api_handler.utils import get_mime_from_path, API_URL, DEFAULT_USER
 from api.schemas.messages import SubmitImageMessage, Chat, MiniChat
 
 def get_chats(user_id : Optional[str] = None) -> List[MiniChat]:

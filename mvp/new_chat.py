@@ -1,7 +1,7 @@
 import streamlit as st
 import app.api_handler.chat as handler
-from app.utils.text import home_intro, home_description
-from app.utils.cache import add_chat
+from mvp.utils.text import home_intro, home_description
+from mvp.utils.cache import add_chat
 
 st.markdown(home_intro)
 

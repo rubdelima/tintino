@@ -15,16 +15,16 @@ try:
     
     st.logo("./assets/images/icon.png", size="large")
     
-    from app.history import history_page
-    from app.utils.cache import get_user_chats
-    from app.utils import get_emoji
+    from mvp.history import history_page
+    from mvp.utils.cache import get_user_chats
+    from mvp.utils import get_emoji
     
     chats = get_user_chats()
     
     pages = {
         "Nova História": [
             st.Page(
-                "app/new_chat.py",
+                "mvp/new_chat.py",
                 icon="🖌️",
                 title="Nova História",
                 default=True,

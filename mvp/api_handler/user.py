@@ -1,7 +1,7 @@
 import requests
 
 from api.schemas.users import User, UserDB, CreateUser
-from app.api_handler.utils import API_URL, DEFAULT_USER
+from mvp.api_handler.utils import API_URL, DEFAULT_USER
 
 def create_user(name: str, token: str) -> UserDB:
     user_data = CreateUser(name=name)

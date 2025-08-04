@@ -1,8 +1,8 @@
 import streamlit as st
 from api.schemas.messages import Chat
-from app.utils.draw_canvas import draw_canvas
-from app.utils import submit_drawing
-from app.utils.cache import get_chat
+from mvp.utils.draw_canvas import draw_canvas
+from mvp.utils import submit_drawing
+from mvp.utils.cache import get_chat
 from typing import Optional
 
 def history_page(mini_chat: Chat, user_id: Optional[str] = None):
