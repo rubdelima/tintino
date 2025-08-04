@@ -3,14 +3,17 @@
 import React, { useEffect, useState } from 'react';
 import type { Story } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Paintbrush } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Paintbrush, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth.tsx';
 import { Skeleton } from './ui/skeleton';
 import { getApiEndpoint } from '@/lib/api-config';
+import { useRouter } from 'next/navigation';
 
 interface StoryListProps {
   onSelectStory: (story: Story) => void;
   selectedStoryId?: string | null;
+  showNewStoryButton?: boolean;
 }
 
 const isEmoji = (str: string | null | undefined) => {
@@ -19,19 +22,27 @@ const isEmoji = (str: string | null | undefined) => {
   return emojiRegex.test(str) && str.match(emojiRegex)?.length === 1;
 };
 
-export function StoryList({ onSelectStory, selectedStoryId }: StoryListProps) {
+export function StoryList({ onSelectStory, selectedStoryId, showNewStoryButton = false }: StoryListProps) {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const { firebaseToken } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchStories = async () => {
       if (!firebaseToken) {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
         return;
       };
 
-      setLoading(true);
+      if (isMounted) {
+        setLoading(true);
+      }
+      
       try {
         const response = await fetch(getApiEndpoint('CHATS'), {
           headers: {
@@ -42,15 +53,24 @@ export function StoryList({ onSelectStory, selectedStoryId }: StoryListProps) {
           throw new Error('Failed to fetch stories');
         }
         const data = await response.json();
-        setStories(data);
+        
+        if (isMounted) {
+          setStories(data);
+        }
       } catch (error) {
         console.error(error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchStories();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [firebaseToken]);
 
 
@@ -82,13 +102,25 @@ export function StoryList({ onSelectStory, selectedStoryId }: StoryListProps) {
   return (
     <ScrollArea className="flex-1">
       <div className="p-4 space-y-6">
+        {showNewStoryButton && (
+          <div>
+            <Button 
+              onClick={() => router.push('/')} 
+              className="w-full justify-start gap-2"
+              variant="outline"
+            >
+              <Plus size={16} />
+              Nova História
+            </Button>
+          </div>
+        )}
         <div>
-          <h3 className="px-3 mb-2 text-xs font-bold tracking-wider text-muted-foreground uppercase">Your Stories</h3>
+          <h3 className="px-3 mb-2 text-xs font-bold tracking-wider text-muted-foreground uppercase">Suas Histórias</h3>
           <div className="space-y-1">
             {stories.length > 0 ? (
                 stories.map(renderStory)
             ) : (
-                <p className="px-3 text-sm text-muted-foreground">You don't have any stories yet. Create one!</p>
+                <p className="px-3 text-sm text-muted-foreground">Você ainda não tem histórias. Crie uma!</p>
             )}
           </div>
         </div>

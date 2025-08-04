@@ -32,7 +32,7 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
+        title: 'Falha no Login',
         description: error.message,
       });
     } finally {
@@ -48,10 +48,10 @@ export default function LoginPage() {
             <Rocket className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-3xl font-bold font-headline">
-            Story Canvas
+            {process.env.NEXT_PUBLIC_APP_NAME || 'Louie'}
           </CardTitle>
           <CardDescription>
-            Welcome back! Please log in to continue.
+            Bem-vindo de volta! Faça login para continuar.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,7 +69,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input 
                 id="password" 
                 type="password" 
@@ -81,15 +81,15 @@ export default function LoginPage() {
             </div>
             <Button type="submit" className="w-full btn-sticker mt-4" disabled={loading}>
               <Rocket className="mr-2 h-5 w-5" />
-              {loading ? 'Logging in...' : 'Log In'}
+              {loading ? 'Fazendo login...' : 'Entrar'}
             </Button>
             <div className="mt-4 text-center text-sm">
-              Don't have an account?{' '}
+              Não tem uma conta?{' '}
               <Link
                 href="/register"
                 className="font-medium text-primary hover:underline"
               >
-                Sign Up
+                Cadastre-se
               </Link>
             </div>
           </form>

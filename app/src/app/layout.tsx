@@ -3,9 +3,11 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/components/auth-provider';
 
+const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Louie';
+
 export const metadata: Metadata = {
-  title: 'Story Canvas',
-  description: 'An interactive AI-powered story and drawing app for kids.',
+  title: appName,
+  description: 'Um aplicativo interativo de histórias e desenhos para crianças alimentado por IA.',
 };
 
 export default function RootLayout({

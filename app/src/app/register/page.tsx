@@ -49,20 +49,20 @@ export default function RegisterPage() {
             <UserPlus className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-3xl font-bold font-headline">
-            Create an Account
+            Criar uma Conta
           </CardTitle>
           <CardDescription>
-            Let's get you started on your storytelling adventure!
+            Vamos começar sua aventura de contar histórias!
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Nome</Label>
               <Input 
                 id="name" 
                 type="text" 
-                placeholder="Your Name" 
+                placeholder="Seu Nome" 
                 required 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -82,7 +82,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input 
                 id="password" 
                 type="password" 
@@ -94,15 +94,15 @@ export default function RegisterPage() {
             </div>
             <Button type="submit" className="w-full btn-sticker mt-4" disabled={loading}>
               <UserPlus className="mr-2 h-5 w-5" />
-              {loading ? 'Creating Account...' : 'Sign Up'}
+              {loading ? 'Criando Conta...' : 'Cadastrar'}
             </Button>
             <div className="mt-4 text-center text-sm">
-              Already have an account?{' '}
+              Já tem uma conta?{' '}
               <Link
                 href="/"
                 className="font-medium text-primary hover:underline"
               >
-                Log In
+                Fazer Login
               </Link>
             </div>
           </form>

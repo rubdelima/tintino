@@ -13,6 +13,8 @@ interface DrawingCanvasProps {
   className?: string;
   aiHint?: string;
   isDrawingCanvas?: boolean;
+  hasNoMessages?: boolean;
+  storyTitle?: string;
 }
 
 export interface DrawingCanvasRef {
@@ -22,7 +24,7 @@ export interface DrawingCanvasRef {
 }
 
 const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
-  ({ storyImageUrl, generatedImageUrl, brushColor, brushSize, className, aiHint, isDrawingCanvas = false }, ref) => {
+  ({ storyImageUrl, generatedImageUrl, brushColor, brushSize, className, aiHint, isDrawingCanvas = false, hasNoMessages = false, storyTitle }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const contextRef = useRef<CanvasRenderingContext2D | null>(null);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -181,7 +183,15 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
             </>
         ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground p-8 text-center">
-                <p className="text-xl font-medium">Select a story from the sidebar to begin!</p>
+                {hasNoMessages && storyTitle ? (
+                    <div className="space-y-2">
+                        <p className="text-xl font-medium">"{storyTitle}"</p>
+                        <p className="text-lg">Esta história ainda não tem mensagens.</p>
+                        <p className="text-sm">Comece criando uma nova mensagem!</p>
+                    </div>
+                ) : (
+                    <p className="text-xl font-medium">Selecione uma história para começar!</p>
+                )}
             </div>
         )}
         </div>

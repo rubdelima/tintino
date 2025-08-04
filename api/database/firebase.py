@@ -31,13 +31,7 @@ def get_credentials_file() -> str:
 # Obter usuário de teste do config
 TEST_USER = config.get("APISettings", {}).get("test_user", "")
 
-from api.database.interface import DatabaseInterface
-from api.schemas.users import User, CreateUser, UserDB
-from api.schemas.messages import Chat, ChatItems, MiniChatBase, MiniChat, SubmitImageMessage, Message
-from api.utils import get_mime_extension, generate_filename
-from api.utils.logger import get_logger
 
-logger = get_logger(__name__)
 
 class FirebaseDB(DatabaseInterface):
     def __init__(self) -> None:

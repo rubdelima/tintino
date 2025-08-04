@@ -78,14 +78,14 @@ export function AuthProviderWrapper({ children }: { children: ReactNode }) {
       body: JSON.stringify({ name: displayName })
     });
 
-    router.push('/home');
+    router.push('/');
   };
 
   const login = async (email: string, password: string) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const token = await userCredential.user.getIdToken();
     setFirebaseToken(token);
-    router.push('/home');
+    router.push('/');
   };
 
   const logout = async () => {

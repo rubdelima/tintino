@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
 import { Skeleton } from './ui/skeleton';
 
-const publicRoutes = ['/', '/login', '/register'];
+const publicRoutes = ['/login', '/register'];
 
 function AuthChecker({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -16,15 +16,18 @@ function AuthChecker({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!loading) {
       if (user && publicRoutes.includes(pathname)) {
-        router.push('/home');
+        router.push('/');
       }
-      if (!user && !publicRoutes.includes(pathname)) {
+      if (!user && !publicRoutes.includes(pathname) && pathname !== '/') {
+        router.push('/login');
+      }
+      if (!user && pathname === '/') {
         router.push('/login');
       }
     }
   }, [user, loading, router, pathname]);
 
-  if (loading || (!user && !publicRoutes.includes(pathname)) || (user && publicRoutes.includes(pathname))) {
+  if (loading || (!user && pathname !== '/' && !publicRoutes.includes(pathname)) || (user && publicRoutes.includes(pathname)) || (!user && pathname === '/')) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
