@@ -15,8 +15,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Paintbrush, LogOut } from 'lucide-react';
-import type { Story } from '@/lib/types';
+import { LogOut, Send, Loader2 } from 'lucide-react';
+import type { Story, Message, SubmitImageMessage } from '@/lib/types';
 import DrawingCanvas, { type DrawingCanvasRef } from '@/components/drawing-canvas';
 import { StoryList } from '@/components/story-list';
 import { DrawingToolbar } from '@/components/drawing-toolbar';
@@ -25,21 +25,32 @@ import { Card } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { buildApiUrl } from '@/lib/api-config';
+import { buildApiUrl, getWebSocketUrl } from '@/lib/api-config';
 
 export default function DrawPage() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [loadingStory, setLoadingStory] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [brushColor, setBrushColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(5);
+  const [isErasing, setIsErasing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   
   const drawingCanvasRef = useRef<DrawingCanvasRef>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const feedbackAudioRef = useRef<HTMLAudioElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+
   const { toast } = useToast();
   const router = useRouter();
   const { firebaseToken, logout, user } = useAuth();
+
+  const cleanupWebSocket = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.close();
+    }
+    wsRef.current = null;
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -63,15 +74,14 @@ export default function DrawPage() {
       })
       .then(response => {
           if (!response.ok) {
-              throw new Error('Falha ao carregar detalhes da história');
+              throw new Error('Failed to load story details');
           }
           return response.json();
       })
       .then(fullStoryData => {
           if (isMounted) {
-            console.log('Loaded story:', fullStoryData.title, 'Messages:', fullStoryData.messages?.length || 0);
+            console.log("Fetched Story Data:", fullStoryData);
             setSelectedStory(fullStoryData);
-            // Set current index to last message by default
             const lastIndex = fullStoryData.messages?.length > 0 ? fullStoryData.messages.length - 1 : 0;
             setCurrentIndex(lastIndex);
           }
@@ -81,8 +91,8 @@ export default function DrawPage() {
             console.error(error);
             toast({
                 variant: 'destructive',
-                title: 'Erro',
-                description: 'Não foi possível carregar a história. Tente novamente.',
+                title: 'Error',
+                description: 'Could not load the story. Please try again.',
             });
             router.push('/');
           }
@@ -96,58 +106,25 @@ export default function DrawPage() {
     
     return () => {
       isMounted = false;
+      cleanupWebSocket();
     };
   }, [firebaseToken, router, toast]);
   
-  // Navigation functions
   const handlePreviousMessage = useCallback(() => {
     if (selectedStory?.messages && currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      drawingCanvasRef.current?.clearCanvas();
     }
   }, [currentIndex, selectedStory?.messages]);
 
   const handleNextMessage = useCallback(() => {
     if (selectedStory?.messages && currentIndex < selectedStory.messages.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      drawingCanvasRef.current?.clearCanvas();
     }
   }, [currentIndex, selectedStory?.messages]);
-
-  // Audio playback functions
-  const handlePlayAudio = useCallback(() => {
-    if (selectedStory?.messages && selectedStory.messages[currentIndex]?.audio) {
-      const audioUrl = selectedStory.messages[currentIndex].audio;
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play();
-        setIsPlayingAudio(true);
-      }
-    }
-  }, [selectedStory?.messages, currentIndex]);
-
-  const handleStopAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlayingAudio(false);
-    }
-  }, []);
-
-  // Audio event handlers
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      const handleEnded = () => setIsPlayingAudio(false);
-      const handleError = () => setIsPlayingAudio(false);
-      
-      audio.addEventListener('ended', handleEnded);
-      audio.addEventListener('error', handleError);
-      
-      return () => {
-        audio.removeEventListener('ended', handleEnded);
-        audio.removeEventListener('error', handleError);
-      };
-    }
-  }, []);
   
   const handleSelectStory = useCallback((story: Story) => {
     sessionStorage.setItem('selectedStoryId', story.chat_id);
@@ -161,18 +138,126 @@ export default function DrawPage() {
   const handleUndo = () => {
     drawingCanvasRef.current?.undo();
   }
+
+  const toggleEraser = () => {
+    setIsErasing(!isErasing);
+  }
+
+  const handleSubmitDrawing = async () => {
+    if (!drawingCanvasRef.current || !selectedStory || !firebaseToken) return;
+    
+    const drawingDataUri = drawingCanvasRef.current.exportAsDataUri();
+    if (!drawingDataUri) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not export the drawing.',
+        });
+        return;
+    }
+
+    setIsSubmitting(true);
+    cleanupWebSocket(); 
+
+    const wsUrl = getWebSocketUrl(`/api/chats/${selectedStory.chat_id}/submit_image_ws`);
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+        ws.send(JSON.stringify({
+            type: 'auth',
+            token: firebaseToken
+        }));
+        
+        ws.send(JSON.stringify({
+            type: 'submit_image',
+            image_data: drawingDataUri.split(',')[1], 
+            mime_type: 'image/png'
+        }));
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'feedback') {
+            const feedbackMessage: SubmitImageMessage = data.message;
+            
+            if (feedbackAudioRef.current && feedbackMessage.audio) {
+                feedbackAudioRef.current.src = feedbackMessage.audio;
+                feedbackAudioRef.current.play();
+            }
+
+            setSelectedStory(prevStory => {
+                if (!prevStory) return null;
+                const newSubmits = [...(prevStory.subimits || [])];
+                const existingSubmitIndex = newSubmits.findIndex(s => s.message_index === feedbackMessage.message_index);
+                if (existingSubmitIndex > -1) {
+                    newSubmits[existingSubmitIndex] = feedbackMessage;
+                } else {
+                    newSubmits.push(feedbackMessage);
+                }
+                return { ...prevStory, subimits: newSubmits };
+            });
+
+            if (!feedbackMessage.data.is_correct) {
+                setIsSubmitting(false);
+                toast({
+                    variant: 'destructive',
+                    title: 'Try Again',
+                    description: feedbackMessage.data.feedback,
+                });
+            } else {
+                 toast({
+                    title: 'Great Job!',
+                    description: 'Your drawing is perfect! Getting the next part of the story...',
+                });
+            }
+
+        } else if (data.type === 'new_message') {
+            const newMessage: Message = data.message;
+            
+            setSelectedStory(prevStory => {
+                if (!prevStory) return null;
+                const updatedMessages = [...prevStory.messages, newMessage];
+                setCurrentIndex(updatedMessages.length - 1);
+                drawingCanvasRef.current?.clearCanvas();
+                return { ...prevStory, messages: updatedMessages };
+            });
+            
+            setIsSubmitting(false);
+
+        } else if (data.type === 'error') {
+            toast({
+                variant: 'destructive',
+                title: 'Submission Error',
+                description: data.message,
+            });
+            setIsSubmitting(false);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Connection Error',
+            description: 'Could not connect to the drawing submission service.',
+        });
+        setIsSubmitting(false);
+    };
+
+    ws.onclose = () => {
+        // setIsSubmitting(false) is handled in other events
+    };
+  };
   
-  // Current message data
   const messagesCount = selectedStory?.messages?.length || 0;
   const currentMessage = selectedStory?.messages?.[currentIndex];
-  const currentSubmit = selectedStory?.subimits?.[currentIndex];
+  const currentSubmit = selectedStory?.subimits?.find(s => s.message_index === currentMessage?.message_index);
 
-  // Navigation states
   const canPrevious = currentIndex > 0;
   const canNext = currentIndex < messagesCount - 1;
-
-  // Check if story has no messages
-  const hasNoMessages = messagesCount === 0;
+  const isLastPage = currentIndex === messagesCount - 1;
 
   useEffect(() => {
     if (audioRef.current && currentMessage?.audio) {
@@ -183,20 +268,13 @@ export default function DrawPage() {
       audioRef.current.load();
     }
   }, [currentMessage]);
-
-  // Debug current message (mantenha por enquanto para verificar quando houver mensagens)
-  useEffect(() => {
-    if (messagesCount > 0) {
-      console.log('Current message:', {
-        currentIndex,
-        image: currentMessage?.image,
-        audio: currentMessage?.audio
-      });
-    }
-  }, [currentIndex, currentMessage, messagesCount]);
-
-  const showDrawingCanvas = !currentSubmit;
   
+  useEffect(() => {
+    if (drawingCanvasRef.current) {
+      drawingCanvasRef.current.setEraser(isErasing);
+    }
+  }, [isErasing]);
+
   if (loadingStory) {
      return (
        <div className="flex h-screen w-full items-center justify-center">
@@ -210,7 +288,6 @@ export default function DrawPage() {
   }
   
   if (!selectedStory) {
-    router.push('/');
     return null; 
   }
 
@@ -237,12 +314,12 @@ export default function DrawPage() {
           <div className="flex flex-col gap-2 p-2">
             {user && (
               <div className='p-2 text-sm'>
-                Bem-vindo, {user.displayName || user.email}
+                Welcome, {user.displayName || user.email}
               </div>
             )}
             <Button onClick={logout} variant="outline" className="w-full justify-start gap-2">
               <LogOut size={16} />
-              Sair
+              Logout
             </Button>
             <div className="p-2 text-xs text-muted-foreground">
               &copy; 2024 {process.env.NEXT_PUBLIC_APP_NAME || 'Louie'}
@@ -261,18 +338,28 @@ export default function DrawPage() {
 
           <main className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
             <div className="flex flex-col gap-4">
-                <div className="flex justify-center items-center min-h-[100px]">
-                    {!hasNoMessages ? (
-                        <PlaybackControls 
-                          audioRef={audioRef} 
-                          onNext={handleNextMessage} 
-                          onPrevious={handlePreviousMessage}
-                          canNext={canNext}
-                          canPrevious={canPrevious}
-                        />
+                <div className="flex justify-center items-center min-h-[100px] gap-4">
+                    {messagesCount > 0 ? (
+                        <>
+                          <PlaybackControls 
+                            audioRef={audioRef} 
+                            onNext={handleNextMessage} 
+                            onPrevious={handlePreviousMessage}
+                            canNext={canNext}
+                            canPrevious={canPrevious}
+                          />
+                           <Button 
+                                onClick={handleSubmitDrawing} 
+                                className="btn-sticker h-16 w-16 p-0" 
+                                variant="secondary" 
+                                disabled={isSubmitting || !isLastPage}
+                            >
+                               {isSubmitting ? <Loader2 size={32} className="animate-spin" /> : <Send size={32} />}
+                           </Button>
+                        </>
                     ) : (
                         <div className="text-center text-muted-foreground">
-                            <p className="text-sm">Nenhuma mensagem para navegar</p>
+                            <p className="text-sm">This story has no messages yet.</p>
                         </div>
                     )}
                 </div>
@@ -282,14 +369,15 @@ export default function DrawPage() {
                     isDrawingCanvas={false}
                     brushColor={brushColor}
                     brushSize={brushSize}
-                    hasNoMessages={hasNoMessages}
+                    hasNoMessages={messagesCount === 0}
                     storyTitle={selectedStory?.title}
                   />
                 </Card>
             </div>
             <div className="flex flex-col gap-4">
-                <div className="flex justify-center items-center min-h-[100px]">
-                  {showDrawingCanvas && (
+              {isLastPage ? (
+                <>
+                  <div className="flex justify-center items-center min-h-[100px] gap-4">
                     <DrawingToolbar
                         brushColor={brushColor}
                         setBrushColor={setBrushColor}
@@ -297,25 +385,51 @@ export default function DrawPage() {
                         setBrushSize={setBrushSize}
                         clearCanvas={handleClearCanvas}
                         undo={handleUndo}
+                        isErasing={isErasing}
+                        toggleEraser={toggleEraser}
                     />
-                  )}
-                </div>
-                <Card className="flex-1 relative w-full overflow-hidden rounded-2xl shadow-lg border-4 border-foreground/10 min-h-0">
-                    <DrawingCanvas
-                        ref={drawingCanvasRef}
-                        brushColor={brushColor}
-                        brushSize={brushSize}
-                        isDrawingCanvas={!!showDrawingCanvas}
-                        storyImageUrl={currentSubmit?.image}
-                    />
-                </Card>
+                  </div>
+                  <Card className="flex-1 relative w-full overflow-hidden rounded-2xl shadow-lg border-4 border-foreground/10 min-h-0">
+                      <div className="absolute inset-0 p-2">
+                         <DrawingCanvas
+                            ref={drawingCanvasRef}
+                            brushColor={brushColor}
+                            brushSize={brushSize}
+                            isDrawingCanvas={true}
+                            generatedImageUrl={currentSubmit?.image}
+                         />
+                      </div>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-center items-center min-h-[100px] gap-4">
+                    <p className="text-lg font-semibold text-muted-foreground">Your Submitted Drawing</p>
+                  </div>
+                  <Card className="flex-1 relative w-full overflow-hidden rounded-2xl shadow-lg border-4 border-foreground/10 min-h-0">
+                      {currentSubmit?.image ? (
+                        <Image
+                          src={currentSubmit.image}
+                          alt="Submitted drawing"
+                          fill
+                          className="object-contain"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground p-8 text-center">
+                          <p className="text-xl font-medium">No drawing was submitted for this step.</p>
+                        </div>
+                      )}
+                  </Card>
+                </>
+              )}
             </div>
           </main>
           
           <audio ref={audioRef} />
+          <audio ref={feedbackAudioRef} />
         </div>
       </SidebarInset>
-      {/* Hidden audio element */}
       <audio ref={audioRef} preload="metadata" />
     </SidebarProvider>
   );

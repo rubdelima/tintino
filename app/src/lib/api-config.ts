@@ -44,3 +44,15 @@ export const buildApiUrl = (endpoint: string): string => {
 export const getApiEndpoint = (key: keyof typeof API_CONFIG.ENDPOINTS): string => {
   return buildApiUrl(API_CONFIG.ENDPOINTS[key]);
 };
+
+/**
+ * Helper function to build WebSocket URLs
+ */
+export const getWebSocketUrl = (endpoint: string): string => {
+  const baseUrl = getApiBaseUrl();
+  const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
+  const httpUrl = baseUrl.replace(/^https?:\/\//, '');
+  return `${wsProtocol}://${httpUrl}${endpoint}`;
+};
+
+    

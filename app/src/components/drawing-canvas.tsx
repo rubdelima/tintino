@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
@@ -21,6 +22,7 @@ export interface DrawingCanvasRef {
   exportAsDataUri: () => string | undefined;
   clearCanvas: () => void;
   undo: () => void;
+  setEraser: (isErasing: boolean) => void;
 }
 
 const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
@@ -31,35 +33,83 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
     const [isStoryImageLoading, setIsStoryImageLoading] = useState(true);
     const [history, setHistory] = useState<ImageData[]>([]);
 
+    const setCanvasSize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      const { width, height } = canvas.getBoundingClientRect();
+      if (canvas.width !== width || canvas.height !== height) {
+        const { devicePixelRatio: ratio = 1 } = window;
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        context.scale(ratio, ratio);
+        return true; // Resized
+      }
+      return false; // Not resized
+    };
+
+    const redrawHistory = () => {
+      const canvas = canvasRef.current;
+      const context = canvas?.getContext("2d");
+      if (!canvas || !context || history.length === 0) return;
+      
+      const lastState = history[history.length - 1];
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = lastState.width;
+      tempCanvas.height = lastState.height;
+      tempCanvas.getContext('2d')?.putImageData(lastState, 0, 0);
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(tempCanvas, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    };
+
     useEffect(() => {
         if (!isDrawingCanvas) return;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const context = canvas.getContext('2d');
-        if (!context) return;
+        contextRef.current = canvas.getContext('2d');
+        if(contextRef.current) {
+          contextRef.current.lineCap = 'round';
+          contextRef.current.lineJoin = 'round';
+        }
+
+        const handleResize = () => {
+          if (setCanvasSize()) {
+            redrawHistory();
+          }
+        };
+
+        handleResize(); // Initial size set
+        window.addEventListener('resize', handleResize);
         
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        contextRef.current = context;
-        saveState();
+        if (history.length === 0) {
+          saveState();
+        }
+        
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        }
     }, [isDrawingCanvas]);
+
 
     useEffect(() => {
         if (!isDrawingCanvas || !contextRef.current) return;
         contextRef.current.strokeStyle = brushColor;
         contextRef.current.lineWidth = brushSize;
+        contextRef.current.globalCompositeOperation = 'source-over';
     }, [brushColor, brushSize, isDrawingCanvas]);
 
     const saveState = () => {
         if (!isDrawingCanvas || !canvasRef.current || !contextRef.current) return;
         const canvas = canvasRef.current;
         const context = contextRef.current;
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        setHistory(prev => [...prev, imageData]);
+        setHistory(prev => [...prev, context.getImageData(0, 0, canvas.width, canvas.height)]);
     }
 
     const restoreState = (imageData: ImageData) => {
-        if (!isDrawingCanvas || !contextRef.current) return;
+        if (!isDrawingCanvas || !contextRef.current || !canvasRef.current) return;
+        const canvas = canvasRef.current;
         contextRef.current.putImageData(imageData, 0, 0);
     }
     
@@ -87,40 +137,57 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
     useEffect(() => {
         if (!isDrawingCanvas || !generatedImageUrl) return;
         const image = new window.Image();
+        image.crossOrigin = 'anonymous';
         image.src = generatedImageUrl;
         image.onload = () => {
             const canvas = canvasRef.current;
             const context = contextRef.current;
             if (canvas && context) {
-            clear();
-            const canvasAspect = canvas.width / canvas.height;
-            const imageAspect = image.width / image.height;
-            let drawWidth = canvas.width;
-            let drawHeight = canvas.height;
-            let x = 0;
-            let y = 0;
+                clear();
+                const canvasAspect = canvas.width / canvas.height;
+                const imageAspect = image.width / image.height;
+                let drawWidth = canvas.width;
+                let drawHeight = canvas.height;
+                let x = 0;
+                let y = 0;
 
-            if(imageAspect > canvasAspect) {
-                drawHeight = drawWidth / imageAspect;
-                y = (canvas.height - drawHeight) / 2;
-            } else {
-                drawWidth = drawHeight * imageAspect;
-                x = (canvas.width - drawWidth) / 2;
-            }
-            context.drawImage(image, x, y, drawWidth, drawHeight);
-            saveState();
+                if(imageAspect > canvasAspect) {
+                    drawHeight = drawWidth / imageAspect;
+                    y = (canvas.height - drawHeight) / 2;
+                } else {
+                    drawWidth = drawHeight * imageAspect;
+                    x = (canvas.width - drawWidth) / 2;
+                }
+                context.drawImage(image, x, y, drawWidth, drawHeight);
+                saveState();
             }
         };
     }, [generatedImageUrl, isDrawingCanvas]);
 
     useImperativeHandle(ref, () => ({
-      exportAsDataUri: () => isDrawingCanvas ? canvasRef.current?.toDataURL('image/png') : undefined,
+      exportAsDataUri: () => {
+        if (!isDrawingCanvas || !canvasRef.current) return undefined;
+        // Create a temporary canvas to export at a specific resolution if needed
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = 1200;
+        exportCanvas.height = 1600;
+        const exportCtx = exportCanvas.getContext('2d');
+        if (exportCtx && canvasRef.current) {
+            exportCtx.drawImage(canvasRef.current, 0, 0, 1200, 1600);
+        }
+        return exportCanvas.toDataURL('image/png');
+      },
       clearCanvas: () => {
         clear();
       },
       undo: () => {
           undo();
-      }
+      },
+      setEraser: (isErasing: boolean) => {
+        if (contextRef.current) {
+            contextRef.current.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
+        }
+      },
     }));
     
     useEffect(() => {
@@ -129,11 +196,20 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       }
     }, [storyImageUrl]);
 
+    const getCoords = (event: React.MouseEvent<HTMLCanvasElement>): [number, number] | null => {
+        const canvas = canvasRef.current;
+        if (!canvas) return null;
+        return [event.nativeEvent.offsetX, event.nativeEvent.offsetY];
+    }
+    
     const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
       if (!isDrawingCanvas) return;
-      const { offsetX, offsetY } = event.nativeEvent;
+      const coords = getCoords(event);
+      if(!coords) return;
+      const [x, y] = coords;
+
       contextRef.current?.beginPath();
-      contextRef.current?.moveTo(offsetX, offsetY);
+      contextRef.current?.moveTo(x, y);
       setIsDrawing(true);
     };
 
@@ -146,8 +222,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
 
     const draw = (event: React.MouseEvent<HTMLCanvasElement>) => {
       if (!isDrawing || !isDrawingCanvas) return;
-      const { offsetX, offsetY } = event.nativeEvent;
-      contextRef.current?.lineTo(offsetX, offsetY);
+      const coords = getCoords(event);
+      if(!coords) return;
+      const [x, y] = coords;
+      
+      contextRef.current?.lineTo(x, y);
       contextRef.current?.stroke();
     };
 
@@ -155,8 +234,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
         return (
             <canvas
                 ref={canvasRef}
-                width={1200}
-                height={1600}
                 onMouseDown={startDrawing}
                 onMouseUp={finishDrawing}
                 onMouseLeave={finishDrawing}

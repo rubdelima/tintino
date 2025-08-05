@@ -4,7 +4,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Eraser, Undo2, Pipette } from 'lucide-react';
+import { Eraser, Undo2, Pipette, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -15,6 +15,8 @@ interface DrawingToolbarProps {
   setBrushSize: (size: number) => void;
   clearCanvas: () => void;
   undo: () => void;
+  isErasing: boolean;
+  toggleEraser: () => void;
 }
 
 const initialColors = [
@@ -27,7 +29,9 @@ export function DrawingToolbar({
   brushSize,
   setBrushSize,
   clearCanvas,
-  undo
+  undo,
+  isErasing,
+  toggleEraser
 }: DrawingToolbarProps) {
   const [colors, setColors] = useState(initialColors);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -63,7 +67,7 @@ export function DrawingToolbar({
             key={color}
             onClick={() => setBrushColor(color)}
             className={`w-8 h-8 rounded-full transition-transform transform hover:scale-110 border-2 ${
-              brushColor === color ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-transparent'
+              brushColor === color && !isErasing ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-transparent'
             }`}
             style={{ backgroundColor: color }}
             aria-label={`Select color ${color}`}
@@ -108,11 +112,14 @@ export function DrawingToolbar({
             />
         </div>
         <div className="flex items-center gap-2">
+            <Button onClick={toggleEraser} variant="ghost" className="btn-sticker-sm h-10 w-10 p-0" data-active={isErasing}>
+                <Eraser size={20} strokeWidth={2.5} />
+            </Button>
             <Button onClick={undo} variant="ghost" className="btn-sticker-sm h-10 w-10 p-0">
                 <Undo2 size={20} strokeWidth={2.5} />
             </Button>
             <Button onClick={clearCanvas} variant="ghost" className="btn-sticker-sm h-10 w-10 p-0">
-                <Eraser size={20} strokeWidth={2.5} />
+                <Trash2 size={20} strokeWidth={2.5} />
             </Button>
         </div>
       </div>

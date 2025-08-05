@@ -8,6 +8,14 @@ const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Louie';
 export const metadata: Metadata = {
   title: appName,
   description: 'Um aplicativo interativo de histórias e desenhos para crianças alimentado por IA.',
+  icons: {
+    icon: [
+      { url: '/icon.png', sizes: 'any', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any', type: 'image/x-icon' }
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({
