@@ -9,6 +9,7 @@ services:
     volumes:
       - ./temp:/app/temp
       - ./assets:/app/assets
+      - ./firebase.json:/app/firebase.json:ro
     environment:
       - PYTHONPATH=/app
     env_file:
