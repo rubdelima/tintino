@@ -21,6 +21,7 @@ model = "whisper-1" # gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1
 [Gemini]
 model = "gemini-2.5-flash"
 voce_name = "Kore"
+assert_continue = true
 
 [Database]
 local = false

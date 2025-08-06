@@ -32,8 +32,10 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
     audio_path.unlink(missing_ok=True)
     logger.debug(f"Transcrição concluída em {time.time() - start_time:.2f} segundos.")
     
+    user = db.get_user(user_id)
+    
     # Geração de História
-    messages : List[Union[SystemMessage, HumanMessage]] = [SystemMessage(content=initial_prompt),HumanMessage(content=instruction)]
+    messages : List[Union[SystemMessage, HumanMessage]] = [SystemMessage(content=initial_prompt.format(child_name=user.name)),HumanMessage(content=instruction)]
     logger.debug(f"Enviando prompt para o Gemini do chat")
     start_time = time.time()
     result = new_chat_llm.invoke(messages)

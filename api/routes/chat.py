@@ -153,7 +153,7 @@ async def submit_image_api(
         
         logger.debug(f"Submetendo desenho {message_index} do chat : {chat.chat_id}")
         
-        result = await submit_image(chat_id, chat.messages[-1].paint_image, image)
+        result = await submit_image(chat_id, chat.messages[-1].paint_image, image, user_id)
         
         image_path = None
         if result.is_correct:
@@ -480,7 +480,7 @@ async def submit_image_websocket(
         )
         
         # Avalia o desenho
-        result = await submit_image(chat_id, chat.messages[-1].paint_image, image_file)
+        result = await submit_image(chat_id, chat.messages[-1].paint_image, image_file, user_id)
         
         # 4. Processa resultado e gera feedback
         image_path = None

@@ -59,3 +59,9 @@ class SubmitImageAPIResponse(SubmitImageResponse):
     feedback_path: str = Field(
         description="Caminho da imagem submetida pelo usuário, para ser usada na validação do desenho."
     )
+
+class AssertContinueChat(BaseModel):
+    is_correct: bool = Field(
+        description="Verifica se a continuação do chat está correta ou não, ou seja, se não foi solicitado um desenho que a criança já desenhou anteriormente."
+    )
+    feedback: str = Field("Feedback para um modelo de IA sobre a continuação do chat, sobre o que ele deverá fazer para corrigir a continuação da história solicitada")

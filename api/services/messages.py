@@ -6,15 +6,15 @@ import time
 from typing import Optional
 
 from api.database import db
-from api.models.google import continue_chat_llm, submit_llm
-from api.models.prompts import submit_image_prompt, continue_chat_prompt
+from api.models.google import continue_chat_llm, submit_llm, assert_continue_chat_llm
+from api.models.prompts import submit_image_prompt, continue_chat_prompt, assert_continue_chat_prompt, fix_history_prompt
 from api.models.text_to_image import generate_scene_image
 from api.models.text_to_speech import generate_text_to_voice
-from api.schemas.llm import ContinueChat, SubmitImageResponse
+from api.schemas.llm import ContinueChat, SubmitImageResponse, AssertContinueChat
 from api.schemas.messages import SubmitImageMessage, Message
 from api.utils import get_mime_extension
 from api.utils.logger import get_logger
-
+from api.constraints import config
 
 logger = get_logger(__name__)
 
@@ -43,7 +43,9 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
     logger.debug(f"Recuperando itens do chat {chat_id} para a nova mensagem {message_id}")
     items = db.get_chat_items(chat_id)
     logger.debug(f"Itens do chat {chat_id} obtidos")
-        
+    
+    user = db.get_user(user_id)
+    
     messages = [
         AIMessage(content=[{
             "type": "image_url",
@@ -51,11 +53,11 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
         }]),
         SystemMessage(content=continue_chat_prompt.format(
             history=items.history,
-            painted_items=items.painted_items
+            painted_items=items.painted_items,
+            child_name=user.name,
         )),
         HumanMessage(content="Continue a história")
     ]
-        
     
     logger.debug(f"Enviando prompt para o Gemini do chat {chat_id} e mensagem {message_id}")
 
@@ -64,6 +66,36 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
     assert isinstance(result, ContinueChat)
     
     logger.debug(f"Resposta do Gemini recebida para o chat {chat_id} e mensagem {message_id}")
+    
+    if config.get("Gemini", {}).get("assert_continue", True):
+        messages += [AIMessage(content=result.model_dump_json()), 
+                     SystemMessage(content=assert_continue_chat_prompt.format(
+                         history=items.history,
+                         painted_items=items.painted_items,
+                         requested_item=result.paint_image,
+                     ))]
+        time_start = time.time()
+        logger.debug(f"Enviando prompt de validação para o Gemini do chat {chat_id} e mensagem {message_id}")
+        assert_result = assert_continue_chat_llm.invoke(messages)
+        logger.debug(f"Resposta de validação do Gemini recebida para o chat {chat_id} e mensagem {message_id} em {time.time() - time_start:.2f} segundos.")
+        assert isinstance(assert_result, AssertContinueChat)
+        
+        if not assert_result.is_correct:
+            logger.warning(f"Continuação do chat {chat_id} e mensagem {message_id} inválida: {assert_result.feedback}")
+            
+            messages.append(SystemMessage(content=fix_history_prompt.format(
+                feedback = assert_result.feedback,
+                history=items.history,
+                painted_items=items.painted_items,
+                child_name=user.name
+            )))
+            
+            start_time = time.time()
+            logger.debug(f"Enviando prompt de correção para o Gemini do chat {chat_id} e mensagem {message_id}")
+            result = continue_chat_llm.invoke(messages)
+            assert isinstance(result, ContinueChat)
+            logger.debug(f"Resposta de correção do Gemini recebida para o chat {chat_id} e mensagem {message_id} em {time.time() - start_time:.2f} segundos.")
+        
     image, audio = generate_image_audio(result, user_id, chat_id, message_id)
     
     message = Message(
@@ -77,7 +109,7 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
     
     return message
 
-async def submit_image(chat_id: str, target: str, image_file: UploadFile) -> SubmitImageResponse:
+async def submit_image(chat_id: str, target: str, image_file: UploadFile, user_id:str) -> SubmitImageResponse:
     
     image_bytes, mime_type, _ = await get_mime_extension(image_file)
     
@@ -90,8 +122,10 @@ async def submit_image(chat_id: str, target: str, image_file: UploadFile) -> Sub
     
     del image_bytes
     
+    user = db.get_user(user_id)
+    
     messages = [
-        SystemMessage(submit_image_prompt.format(doodle_name=target)),
+        SystemMessage(submit_image_prompt.format(doodle_name=target, child_name=user.name)),
         HumanMessage(content=[image_message, f"O meu desenho é de um/uma {target}. O que você achou?"]),
     ]
     
