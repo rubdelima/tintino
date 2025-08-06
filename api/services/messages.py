@@ -126,6 +126,7 @@ def generate_feedback_audio(
         image=image
     )
     
-    db.update_chat(user_id, chat_id, 'submits', submit_message)
+    if result.is_correct:
+        db.update_chat(user_id, chat_id, 'submits', submit_message)
     
     return submit_message

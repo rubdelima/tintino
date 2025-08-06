@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile.api
       target: api
-    ports:
-      - "8000:8000"
+    # ports:
+    #   - "8000:8000"
     volumes:
       - ./temp:/app/temp
       - ./assets:/app/assets
@@ -35,8 +35,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile.mvp
       target: frontend
-    ports:
-      - "8501:8501"
+    # ports:
+    #   - "8501:8501"
     depends_on:
       - api
     volumes:

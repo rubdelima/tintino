@@ -178,7 +178,9 @@ class FirebaseDB(DatabaseInterface):
         
         subimits = list(self.db.collection('submits').\
             where(filter=FieldFilter('chat_id', '==', chat_id)).stream())
+        
         subimits = [SubmitImageMessage(**doc.to_dict()) for doc in subimits]
+        subimits = [s for s in subimits if s.data.is_correct]
         subimits.sort(key=lambda x: x.message_index)
 
         return Chat(
