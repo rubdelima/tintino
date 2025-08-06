@@ -167,7 +167,7 @@ export default function HomePage() {
               Sair
             </Button>
             <div className="p-2 text-xs text-muted-foreground">
-              &copy; 2024 {appName}
+              {/* Removido copyright */}
             </div>
           </div>
         </SidebarFooter>

@@ -74,7 +74,7 @@ export default function DrawPage() {
       })
       .then(response => {
           if (!response.ok) {
-              throw new Error('Failed to load story details');
+              throw new Error('Falha ao carregar detalhes da história');
           }
           return response.json();
       })
@@ -91,8 +91,8 @@ export default function DrawPage() {
             console.error(error);
             toast({
                 variant: 'destructive',
-                title: 'Error',
-                description: 'Could not load the story. Please try again.',
+                title: 'Erro',
+                description: 'Não foi possível carregar a história. Tente novamente.',
             });
             router.push('/');
           }
@@ -150,8 +150,8 @@ export default function DrawPage() {
     if (!drawingDataUri) {
         toast({
             variant: 'destructive',
-            title: 'Error',
-            description: 'Could not export the drawing.',
+            title: 'Erro',
+            description: 'Não foi possível exportar o desenho.',
         });
         return;
     }
@@ -203,13 +203,13 @@ export default function DrawPage() {
                 setIsSubmitting(false);
                 toast({
                     variant: 'destructive',
-                    title: 'Try Again',
+                    title: 'Tente Novamente',
                     description: feedbackMessage.data.feedback,
                 });
             } else {
                  toast({
-                    title: 'Great Job!',
-                    description: 'Your drawing is perfect! Getting the next part of the story...',
+                    title: 'Ótimo Trabalho!',
+                    description: 'Seu desenho está perfeito! Pegando a próxima parte da história...',
                 });
             }
 
@@ -229,7 +229,7 @@ export default function DrawPage() {
         } else if (data.type === 'error') {
             toast({
                 variant: 'destructive',
-                title: 'Submission Error',
+                title: 'Erro de Envio',
                 description: data.message,
             });
             setIsSubmitting(false);
@@ -240,8 +240,8 @@ export default function DrawPage() {
         console.error('WebSocket Error:', error);
         toast({
             variant: 'destructive',
-            title: 'Connection Error',
-            description: 'Could not connect to the drawing submission service.',
+            title: 'Erro de Conexão',
+            description: 'Não foi possível conectar ao serviço de envio de desenhos.',
         });
         setIsSubmitting(false);
     };
@@ -281,7 +281,7 @@ export default function DrawPage() {
          <div className="flex flex-col items-center gap-4">
            <Skeleton className="h-24 w-24 rounded-full" />
            <Skeleton className="h-8 w-64" />
-           <p className="text-lg font-semibold">Loading your amazing story...</p>
+           <p className="text-lg font-semibold">Carregando sua história incrível...</p>
          </div>
        </div>
      );
@@ -314,15 +314,15 @@ export default function DrawPage() {
           <div className="flex flex-col gap-2 p-2">
             {user && (
               <div className='p-2 text-sm'>
-                Welcome, {user.displayName || user.email}
+                Bem-vindo, {user.displayName || user.email}
               </div>
             )}
             <Button onClick={logout} variant="outline" className="w-full justify-start gap-2">
               <LogOut size={16} />
-              Logout
+              Sair
             </Button>
             <div className="p-2 text-xs text-muted-foreground">
-              &copy; 2024 {process.env.NEXT_PUBLIC_APP_NAME || 'Louie'}
+              {/* Removido copyright */}
             </div>
           </div>
         </SidebarFooter>
@@ -331,7 +331,7 @@ export default function DrawPage() {
         <div className="flex flex-col h-screen p-4 gap-4 bg-background">
           <header className="flex items-center justify-between">
             <h2 className="text-2xl font-bold font-headline">
-              {selectedStory?.title || 'Loading...'}
+              {selectedStory?.title || 'Carregando...'}
             </h2>
             <SidebarTrigger />
           </header>
@@ -359,7 +359,7 @@ export default function DrawPage() {
                         </>
                     ) : (
                         <div className="text-center text-muted-foreground">
-                            <p className="text-sm">This story has no messages yet.</p>
+                            <p className="text-sm">Esta história ainda não tem mensagens.</p>
                         </div>
                     )}
                 </div>
@@ -404,7 +404,7 @@ export default function DrawPage() {
               ) : (
                 <>
                   <div className="flex justify-center items-center min-h-[100px] gap-4">
-                    <p className="text-lg font-semibold text-muted-foreground">Your Submitted Drawing</p>
+                    <p className="text-lg font-semibold text-muted-foreground">Seu Desenho Enviado</p>
                   </div>
                   <Card className="flex-1 relative w-full overflow-hidden rounded-2xl shadow-lg border-4 border-foreground/10 min-h-0">
                       {currentSubmit?.image ? (
@@ -417,7 +417,7 @@ export default function DrawPage() {
                         />
                       ) : (
                         <div className="flex items-center justify-center h-full text-muted-foreground p-8 text-center">
-                          <p className="text-xl font-medium">No drawing was submitted for this step.</p>
+                          <p className="text-xl font-medium">Nenhum desenho foi enviado para esta etapa.</p>
                         </div>
                       )}
                   </Card>

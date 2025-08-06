@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Rocket } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/use-auth.tsx';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -61,7 +61,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="seu@email.com"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

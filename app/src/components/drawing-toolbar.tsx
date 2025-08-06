@@ -70,7 +70,7 @@ export function DrawingToolbar({
               brushColor === color && !isErasing ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-transparent'
             }`}
             style={{ backgroundColor: color }}
-            aria-label={`Select color ${color}`}
+            aria-label={`Selecionar cor ${color}`}
           />
         ))}
         <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
