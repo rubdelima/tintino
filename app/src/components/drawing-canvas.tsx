@@ -29,7 +29,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
   ({ storyImageUrl, generatedImageUrl, brushColor, brushSize, className, aiHint, isDrawingCanvas = false, hasNoMessages = false, storyTitle }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-    const [isDrawing, setIsDrawing] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const activePointerId = useRef<number | null>(null);
     const [isStoryImageLoading, setIsStoryImageLoading] = useState(true);
     const [history, setHistory] = useState<ImageData[]>([]);
 
@@ -196,50 +197,77 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       }
     }, [storyImageUrl]);
 
-    const getCoords = (event: React.MouseEvent<HTMLCanvasElement>): [number, number] | null => {
+    // Coordenadas compatíveis com pointer/mouse/touch
+    const getPointerCoords = (event: React.PointerEvent<HTMLCanvasElement>): [number, number] | null => {
         const canvas = canvasRef.current;
         if (!canvas) return null;
-        return [event.nativeEvent.offsetX, event.nativeEvent.offsetY];
-    }
-    
-    const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        return [x, y];
+    };
+
+    const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
       if (!isDrawingCanvas) return;
-      const coords = getCoords(event);
+      if (!event.isPrimary) return; // ignore pointers secundários
+      const coords = getPointerCoords(event);
       if(!coords) return;
       const [x, y] = coords;
 
-      contextRef.current?.beginPath();
-      contextRef.current?.moveTo(x, y);
+      // Capturar o ponteiro para continuar recebendo eventos mesmo fora do canvas
+      try { (event.target as Element).setPointerCapture?.(event.pointerId); } catch {}
+      activePointerId.current = event.pointerId;
+
+      // Ajuste opcional por pressão de caneta (fallback para 1)
+      if (contextRef.current) {
+        const pressure = event.pressure && event.pressure > 0 ? event.pressure : 1;
+        // Mantém o stroke base definido por brushSize; com caneta, modula levemente
+        contextRef.current.lineWidth = brushSize * (event.pointerType === 'pen' ? Math.max(0.5, pressure) : 1);
+        contextRef.current.beginPath();
+        contextRef.current.moveTo(x, y);
+      }
       setIsDrawing(true);
     };
 
-    const finishDrawing = () => {
+    const finishDrawing = (event?: React.PointerEvent<HTMLCanvasElement>) => {
       if (!isDrawingCanvas || !isDrawing) return;
+      if (event && activePointerId.current !== null && event.pointerId !== activePointerId.current) return;
       contextRef.current?.closePath();
       setIsDrawing(false);
+      activePointerId.current = null;
+      try { if (event) (event.target as Element).releasePointerCapture?.(event.pointerId); } catch {}
       saveState();
     };
 
-    const draw = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
       if (!isDrawing || !isDrawingCanvas) return;
-      const coords = getCoords(event);
+      if (activePointerId.current !== null && event.pointerId !== activePointerId.current) return;
+      const coords = getPointerCoords(event);
       if(!coords) return;
       const [x, y] = coords;
-      
-      contextRef.current?.lineTo(x, y);
-      contextRef.current?.stroke();
+
+      if (contextRef.current) {
+        // Atualiza lineWidth com pressão se for caneta
+        const pressure = event.pressure && event.pressure > 0 ? event.pressure : 1;
+        contextRef.current.lineWidth = brushSize * (event.pointerType === 'pen' ? Math.max(0.5, pressure) : 1);
+        contextRef.current.lineTo(x, y);
+        contextRef.current.stroke();
+      }
     };
 
     if (isDrawingCanvas) {
         return (
-            <canvas
-                ref={canvasRef}
-                onMouseDown={startDrawing}
-                onMouseUp={finishDrawing}
-                onMouseLeave={finishDrawing}
-                onMouseMove={draw}
-                className="w-full h-full bg-white cursor-crosshair"
-            />
+      <canvas
+        ref={canvasRef}
+        onPointerDown={startDrawing}
+        onPointerUp={finishDrawing}
+        onPointerCancel={finishDrawing}
+        onPointerLeave={finishDrawing}
+        onPointerMove={draw}
+        onContextMenu={(e) => e.preventDefault()}
+        // touch-action none evita scroll/zoom por gesto enquanto desenha
+        className="w-full h-full bg-white cursor-crosshair touch-none select-none"
+      />
         );
     }
     

@@ -4,17 +4,39 @@
  */
 
 // Configuração baseada no ambiente
+const isBrowser = typeof window !== 'undefined';
+
+/**
+ * Base da API
+ * - No browser: base relativa (""), para passar pelo Nginx em /api
+ * - No servidor (SSR/API Routes): usa INTERNAL_API_URL (ex.: http://api:8000)
+ *   com fallback para NEXT_PUBLIC_API_BASE_URL (apenas para DEV) ou http://localhost:8000
+ */
 const getApiBaseUrl = (): string => {
-  // SEMPRE usa variável de ambiente - obrigatória
+  if (isBrowser) {
+    const envBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+    if (envBase && /^https?:\/\//.test(envBase)) {
+      return envBase;
+    }
+    // Sem base absoluta definida para o cliente: usar caminho relativo (via Nginx)
+    return '';
+  }
+
+  // Server-side
+  if (process.env.INTERNAL_API_URL) {
+    return process.env.INTERNAL_API_URL;
+  }
+
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL;
   }
-  
-  // Se não há variável de ambiente, lança erro
-  throw new Error('NEXT_PUBLIC_API_BASE_URL deve estar definida no .env.local');
+
+  // Fallback de desenvolvimento (SSR local)
+  return 'http://localhost:8000';
 };
 
 export const API_CONFIG = {
+  // No browser ficará "" (base relativa); no server, absoluto
   BASE_URL: getApiBaseUrl(),
   ENDPOINTS: {
     USERS: '/api/users',
@@ -40,7 +62,19 @@ export const getApiEndpoint = (key: keyof typeof API_CONFIG.ENDPOINTS): string =
  * Helper function to build WebSocket URLs
  */
 export const getWebSocketUrl = (endpoint: string): string => {
-  const baseUrl = getApiBaseUrl();
+  if (isBrowser) {
+    const envBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+    if (envBase && /^https?:\/\//.test(envBase)) {
+      const wsProtocol = envBase.startsWith('https') ? 'wss' : 'ws';
+      const httpUrl = envBase.replace(/^https?:\/\//, '');
+      return `${wsProtocol}://${httpUrl}${endpoint}`;
+    }
+    const { protocol, host } = window.location;
+    const wsProtocol = protocol === 'https:' ? 'wss' : 'ws';
+    return `${wsProtocol}://${host}${endpoint}`;
+  }
+
+  const baseUrl = getApiBaseUrl(); // absoluto no server
   const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
   const httpUrl = baseUrl.replace(/^https?:\/\//, '');
   return `${wsProtocol}://${httpUrl}${endpoint}`;
