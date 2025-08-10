@@ -24,21 +24,6 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="")
 
-import firebase_admin
-from firebase_admin import credentials
-
-try:
-    firebase_config_str = os.getenv('FIREBASE_CREDENTIALS_JSON')
-    if firebase_config_str:
-        cred = credentials.Certificate(json.loads(firebase_config_str))
-    else:
-        cred = credentials.Certificate(get_credentials_file())
-
-    firebase_admin.initialize_app(cred)
-    logger.info("Firebase Admin SDK inicializado com sucesso.")
-except Exception as e:
-    logger.error(f"Erro ao inicializar Firebase Admin SDK: {e}")
-
 @app.get(
     "/", 
     status_code=200,
