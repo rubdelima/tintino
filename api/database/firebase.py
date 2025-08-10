@@ -36,7 +36,8 @@ TEST_USER = config.get("APISettings", {}).get("test_user", "")
 class FirebaseDB(DatabaseInterface):
     def __init__(self) -> None:
         try:
-            cred = credentials.Certificate(get_credentials_file())
+            firebase_config_str = os.getenv('FIREBASE_CREDENTIALS_JSON')
+            cred = credentials.Certificate(json.loads(firebase_config_str))
 
             project_id = cred.project_id
             storage_bucket_url = f"{project_id}.firebasestorage.app"
