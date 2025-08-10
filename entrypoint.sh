@@ -11,6 +11,4 @@ echo "Iniciando o script de entrada..."
 echo "Criando o arquivo firebase.json a partir do secret..."
 echo "$FIREBASE_CREDENTIALS_JSON" > /app/firebase.json
 
-# Passa o controle para o comando principal (Uvicorn)
-echo "Iniciando o servidor Uvicorn..."
-exec uvicorn api.main:app --host 0.0.0.0 --port "$PORT"
+exec "$@"
