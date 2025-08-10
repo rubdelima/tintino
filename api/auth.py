@@ -20,6 +20,7 @@ try:
 except Exception as e:
     logger.error(f"Erro ao carregar firebase.json: {e}")
     EXPECTED_PROJECT_ID = None
+    raise HTTPException(status_code=401, detail="Firebase config not loaded")
 
 def _verify_token_core(token: str) -> str:
     """
