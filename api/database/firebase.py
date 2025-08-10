@@ -6,7 +6,7 @@ import uuid
 import os
 from datetime import datetime, timezone
 from typing import Optional
-
+import json
 from api.database.interface import DatabaseInterface
 from api.schemas.users import User, CreateUser, UserDB
 from api.schemas.messages import Chat, ChatItems, MiniChatBase, MiniChat, SubmitImageMessage, Message
