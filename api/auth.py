@@ -20,7 +20,6 @@ try:
 except Exception as e:
     logger.error(f"Erro ao carregar firebase.json: {e}")
     EXPECTED_PROJECT_ID = None
-    raise HTTPException(status_code=401, detail="Firebase config not loaded")
 
 def _verify_token_core(token: str) -> str:
     """
@@ -45,6 +44,14 @@ def _verify_token_core(token: str) -> str:
         # Modo Firebase
         if token == DEFAULT_USER:
             return token
+
+        try:
+            with open(get_credentials_file(), 'r') as f:
+                firebase_config = json.load(f)
+                EXPECTED_PROJECT_ID = firebase_config.get('project_id')
+        except Exception as e:
+            logger.error(f"Erro ao carregar firebase.json: {e}")
+            EXPECTED_PROJECT_ID = None
             
         try:
             # Primeiro, tentar com verificação padrão
