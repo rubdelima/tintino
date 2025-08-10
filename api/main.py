@@ -22,6 +22,17 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="")
 
+@app.on_event("startup")
+def startup_event():
+    """Initialize Firebase Admin SDK on startup."""
+    if not firebase_admin._apps:  # prevents re-initialization on reload
+        cred = credentials.Certificate(get_credentials_file())
+        project_id = cred.project_id
+        storage_bucket_url = f"{project_id}.firebasestorage.app"
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': storage_bucket_url
+        })
+
 @app.get(
     "/", 
     status_code=200,
