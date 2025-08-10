@@ -1,20 +1,14 @@
 import base64
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import UploadFile
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 import time
 from typing import Optional
 
 from api.database import db
-from api.models.google import continue_chat_llm, submit_llm, assert_continue_chat_llm
-from api.models.prompts import submit_image_prompt, continue_chat_prompt, assert_continue_chat_prompt, fix_history_prompt
-from api.models.text_to_image import generate_scene_image
-from api.models.text_to_speech import generate_text_to_voice
-from api.schemas.llm import ContinueChat, SubmitImageResponse, AssertContinueChat
+from api.schemas.llm import ContinueChat, SubmitImageResponse
 from api.schemas.messages import SubmitImageMessage, Message
-from api.utils import get_mime_extension
 from api.utils.logger import get_logger
-from api.constraints import config
+from api.models.core import core_model
 
 logger = get_logger(__name__)
 
@@ -25,10 +19,10 @@ def generate_image_audio(result: ContinueChat, user_id:str, chat_id:Optional[str
 
     with ThreadPoolExecutor() as executor:
         start_time = time.time()
-        future_audio = executor.submit(generate_text_to_voice, 
-                                       audio_prompt, user_id, chat_id, message_id)
+        future_audio = executor.submit(core_model.generate_text_to_voice, 
+                                       audio_prompt, user_id, None, chat_id, message_id)
         
-        future_image = executor.submit(generate_scene_image, 
+        future_image = executor.submit(core_model.generate_scene_image, 
                                        result.scene_image_description, user_id, chat_id, message_id)
         
         future_audio.add_done_callback(lambda f: logger.debug(f"Áudio gerado em {time.time() - start_time:.2f} segundos."))
@@ -46,56 +40,11 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
     
     user = db.get_user(user_id)
     
-    messages = [
-        AIMessage(content=[{
-            "type": "image_url",
-            "image_url": items.last_image,
-        }]),
-        SystemMessage(content=continue_chat_prompt.format(
-            history=items.history,
-            painted_items=items.painted_items,
-            child_name=user.name,
-        )),
-        HumanMessage(content="Continue a história")
-    ]
-    
-    logger.debug(f"Enviando prompt para o Gemini do chat {chat_id} e mensagem {message_id}")
+    logger.debug(f"Enviando prompt para o {core_model.get_model_name('global')} do chat {chat_id} e mensagem {message_id}")
+    start_time = time.time()
+    result = core_model.continue_chat(items, user.name)
+    logger.debug(f"Resposta do {core_model.get_model_name('global')} recebida em {time.time() - start_time:.2f} segundos para o chat {chat_id} e mensagem {message_id}")
 
-    result = continue_chat_llm.invoke(messages)
-
-    assert isinstance(result, ContinueChat)
-    
-    logger.debug(f"Resposta do Gemini recebida para o chat {chat_id} e mensagem {message_id}")
-    
-    if config.get("Gemini", {}).get("assert_continue", True):
-        messages += [AIMessage(content=result.model_dump_json()), 
-                     SystemMessage(content=assert_continue_chat_prompt.format(
-                         history=items.history,
-                         painted_items=items.painted_items,
-                         requested_item=result.paint_image,
-                     ))]
-        time_start = time.time()
-        logger.debug(f"Enviando prompt de validação para o Gemini do chat {chat_id} e mensagem {message_id}")
-        assert_result = assert_continue_chat_llm.invoke(messages)
-        logger.debug(f"Resposta de validação do Gemini recebida para o chat {chat_id} e mensagem {message_id} em {time.time() - time_start:.2f} segundos.")
-        assert isinstance(assert_result, AssertContinueChat)
-        
-        if not assert_result.is_correct:
-            logger.warning(f"Continuação do chat {chat_id} e mensagem {message_id} inválida: {assert_result.feedback}")
-            
-            messages.append(SystemMessage(content=fix_history_prompt.format(
-                feedback = assert_result.feedback,
-                history=items.history,
-                painted_items=items.painted_items,
-                child_name=user.name
-            )))
-            
-            start_time = time.time()
-            logger.debug(f"Enviando prompt de correção para o Gemini do chat {chat_id} e mensagem {message_id}")
-            result = continue_chat_llm.invoke(messages)
-            assert isinstance(result, ContinueChat)
-            logger.debug(f"Resposta de correção do Gemini recebida para o chat {chat_id} e mensagem {message_id} em {time.time() - start_time:.2f} segundos.")
-        
     image, audio = generate_image_audio(result, user_id, chat_id, message_id)
     
     message = Message(
@@ -110,29 +59,11 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
     return message
 
 async def submit_image(chat_id: str, target: str, image_file: UploadFile, user_id:str) -> SubmitImageResponse:
-    
-    image_bytes, mime_type, _ = await get_mime_extension(image_file)
-    
-    image_message = {
-        "type": "image",
-        "source_type": "base64",
-        "mime_type": mime_type,
-        "data": base64.b64encode(image_bytes).decode('utf-8'),
-    }
-    
-    del image_bytes
-    
     user = db.get_user(user_id)
-    
-    messages = [
-        SystemMessage(submit_image_prompt.format(doodle_name=target, child_name=user.name)),
-        HumanMessage(content=[image_message, f"O meu desenho é de um/uma {target}. O que você achou?"]),
-    ]
     
     logger.debug(f"Submetendo nova imagem para o chat: {chat_id}")
     start_time = time.time()
-    result = submit_llm.invoke(messages)
-    assert isinstance(result, SubmitImageResponse)
+    result = await core_model.submit(image_file, target, user.name)
     logger.debug(f"Imagem submetida em {time.time() - start_time:.2f} segundos.")
     
     return result
@@ -146,8 +77,8 @@ def generate_feedback_audio(
         image :Optional[str] = None) -> SubmitImageMessage:
     
     start_time = time.time()
-    
-    feedback_audio = generate_text_to_voice(feedback_audio + result.feedback, user_id, chat_id, message_id, True)
+
+    feedback_audio = core_model.generate_text_to_voice(feedback_audio + result.feedback, user_id, None, chat_id, message_id, True)
 
     logger.debug(f"Áudio de feedback gerado em {time.time() - start_time:.2f} segundos.")
     

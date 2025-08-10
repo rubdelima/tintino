@@ -8,9 +8,7 @@ from api.services.messages import new_message, generate_image_audio
 import threading
 import asyncio
 import os
-from api.models.prompts import initial_prompt
-from api.models.google import new_chat_llm
-from langchain_core.messages import HumanMessage, SystemMessage
+from api.models.core import core_model
 from typing import Union, List, Callable, Optional, Awaitable
 from api.schemas.llm import NewChat
 from api.database import db
@@ -35,11 +33,9 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
     user = db.get_user(user_id)
     
     # Geração de História
-    messages : List[Union[SystemMessage, HumanMessage]] = [SystemMessage(content=initial_prompt.format(child_name=user.name)),HumanMessage(content=instruction)]
     logger.debug(f"Enviando prompt para o Gemini do chat")
     start_time = time.time()
-    result = new_chat_llm.invoke(messages)
-    assert isinstance(result, NewChat)
+    result = core_model.new_chat(user.name, instruction)
     logger.debug(f"Resposta do Gemini recebida em {time.time() - start_time:.2f} segundos. Nome da história: {result.title}")
     
     # Salvando o Chat

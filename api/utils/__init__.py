@@ -7,6 +7,8 @@ from fastapi import UploadFile
 import uuid
 from pathlib import Path
 import os
+import io
+import wave
 
 def load_json(file_path: str) -> dict:
     with open(file_path, "r") as f:
@@ -74,3 +76,13 @@ def generate_filename(mime_type: str, base_filename: Optional[str]) -> str:
         extension = '.bin'
         
     return f"{base_filename}{extension}"
+
+def convert_raw_audio_to_wav(raw_audio_data: bytes,channels: int = 1,sampwidth: int = 2,framerate: int = 24000) -> bytes:    
+    wav_in_memory = io.BytesIO()
+    with wave.open(wav_in_memory, 'wb') as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sampwidth)
+        wf.setframerate(framerate)
+        wf.writeframes(raw_audio_data)
+        
+    return wav_in_memory.getvalue()
