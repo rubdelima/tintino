@@ -14,13 +14,13 @@ logger = get_logger(__name__)
 
 def generate_image_audio(result: ContinueChat, user_id:str, chat_id:Optional[str]=None, message_id: Optional[int]=None) -> tuple[str, str]:
 
-    audio_prompt = "Narre essa história para uma criança de 5 anos, com uma voz amigável e entusiástica: " + \
-        result.text_voice + ".\n" + result.intro_voice
+    audio_prompt = "Narre essa história para uma criança de 5 anos, com uma voz amigável e entusiástica: "
+    audio_content = result.text_voice + ".\n" + result.intro_voice
 
     with ThreadPoolExecutor() as executor:
         start_time = time.time()
         future_audio = executor.submit(core_model.generate_text_to_voice, 
-                                       audio_prompt, user_id, None, chat_id, message_id)
+                                       audio_content, audio_prompt, user_id, None, chat_id, message_id)
         
         future_image = executor.submit(core_model.generate_scene_image, 
                                        result.scene_image_description, user_id, chat_id, message_id)
@@ -78,7 +78,7 @@ def generate_feedback_audio(
     
     start_time = time.time()
 
-    feedback_audio = core_model.generate_text_to_voice(feedback_audio + result.feedback, user_id, None, chat_id, message_id, True)
+    feedback_audio = core_model.generate_text_to_voice(result.feedback,feedback_audio, user_id, None, chat_id, message_id, True)
 
     logger.debug(f"Áudio de feedback gerado em {time.time() - start_time:.2f} segundos.")
     

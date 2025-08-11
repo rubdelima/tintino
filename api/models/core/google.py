@@ -24,49 +24,43 @@ default_voice_name = config.get("Gemini", {}).get("voice_name", "Kore")
 
 class GoogleModel(CoreModelInterface):
     def __init__(self):
-        if os.getenv("GEMINI_API_KEY") is None:
+        logger.info("Configurando cliente GenAI com a chave da API do Gemini")
+        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+        if GEMINI_API_KEY is None:
             logger.error("Chave da API do Gemini não encontrada. Certifique-se de definir a variável de ambiente GEMINI_API_KEY.")
             exit(1)
-
-        gemini_configs = config.get("Gemini", {})
-
-        logger.info("Configurando cliente GenAI com a chave da API do Gemini")
-        self.google_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        self.google_client = genai.Client(api_key=GEMINI_API_KEY)
         logger.info("Cliente GenAI configurado com sucesso.")
         
-        logger.info(f"Carregando modelos da Google via Langchain")
-
+        gemini_configs = config.get("Gemini", {})
+        self.global_model = "Google"
         self.new_chat_model = gemini_configs.get("new_chat", "gemini-2.5-flash")
         self.continue_chat_model = gemini_configs.get("continue_chat", "gemini-2.5-flash")
         self.submit_model = gemini_configs.get("submit", "gemini-2.5-flash")
         self.assert_continue_model = gemini_configs.get("assert_continue", "gemini-2.5-flash-lite")
-
+        self.generate_image_model = gemini_configs.get("generate_image", "gemini-2.0-flash-preview-image-generation")
+        self.generate_voice_model = gemini_configs.get("generate_voice","gemini-2.5-flash-preview-tts")
+        
+        logger.info(f"Carregando modelos da Google via Langchain")
         self.new_chat_llm = ChatGoogleGenerativeAI(
             model=self.new_chat_model,
-            google_api_key=os.getenv("GEMINI_API_KEY"),
+            google_api_key=GEMINI_API_KEY
         ).with_structured_output(NewChat)
 
         self.continue_chat_llm = ChatGoogleGenerativeAI(
             model=self.continue_chat_model,
-            google_api_key=os.getenv("GEMINI_API_KEY"),
+            google_api_key=GEMINI_API_KEY
         ).with_structured_output(ContinueChat)
 
         self.submit_llm = ChatGoogleGenerativeAI(
             model=self.submit_model,
-            google_api_key=os.getenv("GEMINI_API_KEY"),
+            google_api_key=GEMINI_API_KEY
         ).with_structured_output(SubmitImageResponse)
 
         self.assert_continue_llm = ChatGoogleGenerativeAI(
             model=self.assert_continue_model,
-            google_api_key=os.getenv("GEMINI_API_KEY"),
+            google_api_key=GEMINI_API_KEY
         ).with_structured_output(AssertContinueChat)
-        
-    def get_model_name(self, source: Literal["global", "new_chat", "continue_chat", "submit", "assert_continue"]) -> str:
-        if source not in models_list:
-            raise ValueError(f"Modelo desconhecido: {source}")
-        if source == "global":
-            return "Google"
-        return f"Google : {getattr(self, f'{source}_model')}"
 
     def new_chat(self, child_name:str, instruction:str) ->NewChat:
         messages : List[Union[SystemMessage, HumanMessage]] = [
@@ -164,15 +158,15 @@ class GoogleModel(CoreModelInterface):
 
         return result
     
-    def generate_text_to_voice(self, prompt: str, user_id:str, voice_name:Optional[str]=None,
+    def generate_text_to_voice(self, content: str, instructions:str, user_id:str, voice_name:Optional[str]=None,
                                chat_id: Optional[str] = None, message_id: Optional[int] = None, feedback:bool=False) -> str:
         
         if voice_name is None:
             voice_name = default_voice_name
 
         response = self.google_client.models.generate_content(
-           model="gemini-2.5-flash-preview-tts",
-           contents=prompt,
+           model=self.generate_voice_model,
+           contents=instructions + content,
            config=types.GenerateContentConfig(
               response_modalities=["AUDIO"],
               speech_config=types.SpeechConfig(
@@ -204,7 +198,7 @@ class GoogleModel(CoreModelInterface):
         contents = ("Crie uma imagem cartunesca a partir dessa descrição: ",  description)
 
         response = self.google_client.models.generate_content(
-            model="gemini-2.0-flash-preview-image-generation",
+            model=self.generate_image_model,
             contents=contents, #type:ignore
             config=types.GenerateContentConfig(
                 response_modalities=["TEXT", "IMAGE"],

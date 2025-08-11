@@ -1,6 +1,6 @@
 import json
 import base64
-from typing import Optional
+from typing import Optional, Any, Dict
 import magic
 import mimetypes
 from fastapi import UploadFile
@@ -35,6 +35,33 @@ def image_to_b64(image: str, text:Optional[str] = None) -> dict:
     if text:
         data["text"] = text
     return data
+
+def image_part_from_any(image_ref: Optional[Any]) -> Optional[Dict[str, Any]]:
+    """
+    Constrói um 'content part' de imagem para o Responses API a partir de:
+      - URL (http/https)
+      - data URL (data:image/...;base64,...)
+      - bytes (codifica pra data URL)
+      - None (retorna None)
+    """
+    if not image_ref:
+        return None
+
+    # Já é data URL?
+    if isinstance(image_ref, str) and image_ref.startswith("data:image/"):
+        return {"type": "input_image", "image_url": image_ref}
+
+    # URL http(s)?
+    if isinstance(image_ref, str) and (image_ref.startswith("http://") or image_ref.startswith("https://")):
+        return {"type": "input_image", "image_url": image_ref}
+
+    # Bytes -> cria data URL (png por padrão)
+    if isinstance(image_ref, (bytes, bytearray)):
+        b64 = base64.b64encode(image_ref).decode("utf-8")
+        data_url = f"data:image/png;base64,{b64}"
+        return {"type": "input_image", "image_url": data_url}
+    
+    raise ValueError("image_ref deve ser uma URL, data URL ou bytes")
 
 async def get_mime_extension(file: UploadFile):
     try:

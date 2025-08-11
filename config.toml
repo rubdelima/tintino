@@ -19,16 +19,19 @@ local = false # Para usar o Whisper localmente, defina como true, mas caso queir
 model = "whisper-1" # gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1 
 
 [Models]
-core_model = "google"
-text_to_image = "google"
-text_to_speech = "google"
-assert_continue = true
+multi_models = true # Se multi_models for verdadeiro, mais de um modelo pode ser usado, desde que se tenha uma chave desse modelo
+core_model = "openai" 
+generate_image = "openai"  # google | openai
+generate_voice = "openai"  # google | openai
+assert_continue = false
 
 [Gemini]
 new_chat = "gemini-2.5-flash"
 continue_chat = "gemini-2.5-flash"
 submit = "gemini-2.5-flash"
 assert_continue = "gemini-2.5-flash-lite"
+generate_image = "gemini-2.0-flash-preview-image-generation"
+generate_voice = "gemini-2.5-flash-preview-tts"
 voce_name = "Kore"
 
 [OpenAI]
@@ -36,6 +39,9 @@ new_chat = "gpt-5-mini"
 continue_chat = "gpt-5-mini"
 submit = "gpt-5-mini"
 assert_continue = "gpt-5-nano"
+generate_image = "gpt-5"
+generate_voice = "gpt-4o-mini-tts"
+voce_name = "sage"
 
 [Database]
 local = false

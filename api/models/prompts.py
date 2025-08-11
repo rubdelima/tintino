@@ -95,6 +95,43 @@ class ContinueChat(BaseModel):
     scene_image_description : str = Field(description="Descrição da cena que ilusta a cena da história que está sendo contada")
 """
 
+continue_chat_json_text = {
+    "format": {
+        "type": "json_schema",
+        "name": "continue_chat",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "paint_image": {
+                    "type": "string",
+                    "description": "Nome do objeto principal (simples) para criança desenhar/colorir, relacionado à história."
+                },
+                "text_voice": {
+                    "type": "string",
+                    "description": "Texto a ser lido para a criança, até 100 palavras, pode mencionar o nome dela."
+                },
+                "intro_voice": {
+                    "type": "string",
+                    "description": "Introdução curta (máx. 10 palavras) que direciona a criança para o desenho da etapa."
+                },
+                "scene_image_description": {
+                    "type": "string",
+                    "description": "Descrição detalhada da cena ilustrando o momento da história."
+                }
+            },
+            "required": [
+                "paint_image",
+                "text_voice",
+                "intro_voice",
+                "scene_image_description"
+            ],
+            "additionalProperties": False
+        }
+    },
+    "verbosity": "medium"
+}
+
 continue_chat_input = """
 - Em paint_image o nome do objeto que deverá ser gerada uma imagem para a criança desenhar/colorir.
 - Em text_voice você deverá retornar o texto que deverá ser lido para a criança, será utilizado um modelo de TTS para falar com a criança. Lembre-se de criar um texto não muito longo, de até 100 palavras. Use um vocabulário simples para uma criança,  você pode falar o nome dela que é {child_name}
@@ -122,6 +159,33 @@ class SubmitImageResponse(BaseModel):
     feedback: str = Field(description="Feedback para a criança, caso o desenho esteja correto, você pode elogiar o desenho e dizer que ela fez um ótimo trabalho. Caso o desenho não esteja correto, você deve dizer que o desenho não está correto e dar dicas de como melhorar o desenho, mas sempre de forma positiva e incentivadora.")
 """
 
+submit_image_json_text = {
+    "format": {
+        "type": "json_schema",
+        "name": "submit_image_prompt",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "is_correct": {
+                    "type": "boolean",
+                    "description": "Se o desenho está correto ou não, ou seja, se o desenho representa o que foi pedido na história."
+                },
+                "feedback": {
+                    "type": "string",
+                    "description": "Feedback para a criança, caso o desenho esteja correto, você pode elogiar o desenho e dizer que ela fez um ótimo trabalho. Caso o desenho não esteja correto, você deve dizer que o desenho não está correto e dar dicas de como melhorar o desenho, mas sempre de forma positiva e incentivadora."
+                }
+            },
+            "required": [
+                "is_correct",
+                "feedback"
+            ],
+            "additionalProperties": False
+        }
+    },
+    "verbosity": "medium"
+}
+
 submit_image_prompt_input = """
 
 Você é um agente especializado em avaliar desenhos infantis, observe a imagem que foi enviada, ela é um desenho feito por uma criança, você deverá avaliar se o desenho está correto, ou seja, se o desenho representa o que foi pedido.
@@ -144,6 +208,34 @@ class AssertContinueChat(BaseModel):
     feedback: str = Field("Feedback para um modelo de IA sobre a continuação do chat, sobre o que ele deverá fazer para corrigir a continuação da história solicitada")
 
 """
+
+assert_continue_chat_json_text = {
+    "format": {
+        "type": "json_schema",
+        "name": "assert_continue_chat",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "is_correct": {
+                    "type": "boolean",
+                    "description": "Verifica se a continuação do chat está correta ou não, ou seja, se não foi solicitado um desenho que a criança já desenhou anteriormente."
+                },
+                "feedback": {
+                    "type": "string",
+                    "description": "Feedback para um modelo de IA sobre a continuação do chat, sobre o que ele deverá fazer para corrigir a continuação da história solicitada",
+                    "minLength": 1
+                }
+            },
+            "required": [
+                "is_correct",
+                "feedback"
+            ],
+            "additionalProperties": False
+        }
+    },
+    "verbosity": "medium"
+}
 
 assert_continue_chat_input = """
 Você é um agente especializado em avaliar a continuação de histórias infantis, você deverá avaliar se a continuação da história do modelo está correta, ou seja, se não foi solicitado um desenho que a criança já desenhou anteriormente.
