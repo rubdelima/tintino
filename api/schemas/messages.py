@@ -1,4 +1,14 @@
 from pydantic import BaseModel, Field
+from typing import List
+
+# ...existing code...
+
+
+# Resposta customizada para GET /api/chats/
+class ChatsAndVoicesResponse(BaseModel):
+    chats: List['MiniChat']
+    available_voices: List[str]
+from pydantic import BaseModel, Field
 from api.schemas.llm import ContinueChat, SubmitImageResponse
 from typing import List, Optional
 from datetime import datetime
@@ -118,6 +128,11 @@ class MiniChatBase(BaseModel):
         ...,
         description="Última atualização do chat"
     )
+    voice_name: str = Field(
+        default="Kore",
+        description="Nome da voz utilizada para narração do chat",
+        examples=["Kore", "sage", "shimmer"]
+    )
 
 class MiniChat(MiniChatBase):
     """
@@ -147,6 +162,7 @@ class Chat(MiniChat):
         default=[],
         description="Lista de submissões de desenho"
     )
+    # voice_name já herdado de MiniChatBase
 
 class SubmitImageHandler(BaseModel):
     """

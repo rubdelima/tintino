@@ -59,6 +59,10 @@ class LocalDatabase(DatabaseInterface):
     def load_db(self):
         os.makedirs("./temp/", exist_ok=True)
         self.chats = load_json("./temp/chats.json")
+        # Garantir que todos os chats tenham voice_name
+        for chat in self.chats.values():
+            if 'voice_name' not in chat or not chat['voice_name']:
+                chat['voice_name'] = "Kore"
         self.users = load_json("./temp/users.json")
         self.archives = {
                 path.stem for path in Path("./temp/archives").glob("**/*") 
@@ -177,14 +181,16 @@ class LocalDatabase(DatabaseInterface):
     
     @auto_save
     def save_chat(self, user_id: str, chat: MiniChatBase) -> MiniChat:
-        
         chat_id = self.temp_chat_ids.get(user_id)
         if chat_id is None:
             chat_id = self.generate_new_chat_id()
         else:
             del self.temp_chat_ids[user_id]
-        
-        self.chats[chat_id] = Chat(chat_id=chat_id, **chat.model_dump())
+        # Garante que voice_name sempre está presente
+        chat_data = chat.model_dump()
+        if 'voice_name' not in chat_data or not chat_data['voice_name']:
+            chat_data['voice_name'] = "Kore"
+        self.chats[chat_id] = Chat(chat_id=chat_id, **chat_data)
         return self.chats[chat_id]
     
     @auto_save

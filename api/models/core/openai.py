@@ -39,7 +39,12 @@ class OpenAIModel(CoreModelInterface):
         self.assert_continue_model = openai_configs.get("assert_continue", "gpt-5-nano")
         self.generate_image_model = openai_configs.get("generate_image", "gpt-5")
         self.generate_voice_model = openai_configs.get("generate_voice","gpt-4o-mini-tts")
-
+        self.voice_names = [
+            "alloy", "ash", "ballad",
+            "coral", "echo", "fable",
+            "nova", "onyx", "sage", "shimmer"
+        ]
+        
     def new_chat(self, child_name:str, instruction:str) ->NewChat:
         response = self.client.responses.create(
             model = self.new_chat_model,

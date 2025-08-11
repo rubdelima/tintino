@@ -34,9 +34,11 @@ class MultiModels(CoreModelInterface):
             self.generate_image_model = self.openai_model.generate_image_model
         if models_settings.get('generate_voice', 'google') == 'google':
             self.generate_voice_model = self.google_model.generate_voice_model
+            self.voice_names = self.google_model.voice_names
         else:
             self.generate_voice_model = self.openai_model.generate_voice_model
-    
+            self.voice_names = self.openai_model.voice_names
+
     def new_chat(self, child_name: str, instruction: str) -> NewChat:
         if models_settings.get("core_model", "google") == "google":
             return self.google_model.new_chat(child_name, instruction)

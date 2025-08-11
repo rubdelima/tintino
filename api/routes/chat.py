@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect, Form
 from typing import List
 import traceback
 import asyncio
@@ -43,12 +43,14 @@ router = APIRouter(
         400: {"description": "Arquivo de áudio inválido"},
     }
 )
+
 async def create_chat(
-    voice_audio: UploadFile, 
+    voice_audio: UploadFile,
+    voice_name: str = Form(default="Kore"),
     user_id: str = Depends(verify_token)
 ):
     try:
-        chat = await new_chat(user_id, voice_audio) #type:ignore
+        chat = await new_chat(user_id, voice_audio, voice_name) #type:ignore
         logger.info(f"Chat de Título: {chat.title} - ID: {chat.chat_id}")
         return chat
     except HTTPException as http_exc:
@@ -59,9 +61,11 @@ async def create_chat(
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+from api.schemas.messages import ChatsAndVoicesResponse
+
 @router.get(
     "/", 
-    response_model=List[MiniChat], 
+    response_model=ChatsAndVoicesResponse, 
     status_code=200,
     summary="Listar chats do usuário",
     description="""
@@ -76,9 +80,13 @@ async def create_chat(
     }
 )
 async def get_chats(user_id: str = Depends(verify_token)):
+    from api.models.core import core_model
     try:
         user = db.get_user(user_id)
-        return user.chats
+        return {
+            "chats": user.chats,
+            "available_voices": getattr(core_model, "voice_names", ["Kore"])
+        }
     except HTTPException as http_exc:
         logger.error(f"Erro ao buscar chats: {http_exc.detail}")
         raise http_exc

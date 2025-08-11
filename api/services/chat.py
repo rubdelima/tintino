@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 os.makedirs('./temp', exist_ok=True)
 
-async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
+async def new_chat(user_id:str, audio_file: UploadFile, voice_name: str = "Kore") -> Chat:
     # Trasncrição de Áudio
     #TODO: Sempre está achando que é outro formato mesmo sendo WAV, futuramente resolver !
     audio_path = await prepare_audio_file(audio_file)
@@ -43,10 +43,11 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
         title=result.title,
         chat_image=result.shortcode,
         last_update= datetime.now(timezone.utc),
+        voice_name=voice_name or "Kore"
     ))
     
     # Geração de Audio e Imagem
-    image, audio = generate_image_audio(result, user_id, chat.chat_id, 0)
+    image, audio = generate_image_audio(result, user_id, chat.chat_id, 0, voice_name)
     
     # Salvando Mensagem
     logger.debug(f"Salvando nova mensagem no banco de dados para o chat {chat.chat_id}")

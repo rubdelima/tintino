@@ -40,6 +40,19 @@ class GoogleModel(CoreModelInterface):
         self.assert_continue_model = gemini_configs.get("assert_continue", "gemini-2.5-flash-lite")
         self.generate_image_model = gemini_configs.get("generate_image", "gemini-2.0-flash-preview-image-generation")
         self.generate_voice_model = gemini_configs.get("generate_voice","gemini-2.5-flash-preview-tts")
+        self.voice_names  = [
+            "Zephyr", "Puck", "Charon",
+            "Kore", "Fenrir", "Leda",
+            "Orus", "Aoede", "Callirrhoe",
+            "Autonoe", "Enceladus", "Iapetus",
+            "Umbriel", "Algieba", "Despina",
+            "Erinome", "Algenib", "Rasalgethi",
+            "Laomedeia", "Achernar", "Alnilam",
+            "Schedar", "Gacrux", "Pulcherrima",
+            "Achird", "Zubenelgenubi", "Vindemiatrix",
+            "Sadachbia", "Sadaltager", "Sulafat"
+        ]
+
         
         logger.info(f"Carregando modelos da Google via Langchain")
         self.new_chat_llm = ChatGoogleGenerativeAI(

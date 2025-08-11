@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from api.schemas.llm import NewChat, ContinueChat, SubmitImageResponse, AssertContinueChat
 from api.schemas.messages import ChatItems
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 from fastapi import UploadFile
 
 models_list = ["global", "new_chat", "continue_chat", "submit", "assert_continue"]
@@ -14,6 +14,7 @@ class CoreModelInterface(ABC):
     assert_continue_model : str
     generate_image_model : str
     generate_voice_model : str
+    voice_names :List[str]
     
     def get_model_name(self, source: Literal["global", "new_chat", "continue_chat", "submit", "assert_continue"]) -> str:
         if source not in models_list:

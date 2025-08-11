@@ -12,19 +12,16 @@ from api.models.core import core_model
 
 logger = get_logger(__name__)
 
-def generate_image_audio(result: ContinueChat, user_id:str, chat_id:Optional[str]=None, message_id: Optional[int]=None) -> tuple[str, str]:
-
+def generate_image_audio(result: ContinueChat, user_id:str, chat_id:Optional[str]=None, message_id: Optional[int]=None, voice_name: str = "Kore") -> tuple[str, str]:
     audio_prompt = "Narre essa história para uma criança de 5 anos, com uma voz amigável e entusiástica: "
     audio_content = result.text_voice + ".\n" + result.intro_voice
 
     with ThreadPoolExecutor() as executor:
         start_time = time.time()
         future_audio = executor.submit(core_model.generate_text_to_voice, 
-                                       audio_content, audio_prompt, user_id, None, chat_id, message_id)
-        
+                                       audio_content, audio_prompt, user_id, voice_name, chat_id, message_id)
         future_image = executor.submit(core_model.generate_scene_image, 
                                        result.scene_image_description, user_id, chat_id, message_id)
-        
         future_audio.add_done_callback(lambda f: logger.debug(f"Áudio gerado em {time.time() - start_time:.2f} segundos."))
         future_image.add_done_callback(lambda f: logger.debug(f"Imagem gerada em {time.time() - start_time:.2f} segundos."))
 
@@ -45,7 +42,9 @@ def new_message(user_id:str, chat_id: str, message_id: int) -> Message:
     result = core_model.continue_chat(items, user.name)
     logger.debug(f"Resposta do {core_model.get_model_name('global')} recebida em {time.time() - start_time:.2f} segundos para o chat {chat_id} e mensagem {message_id}")
 
-    image, audio = generate_image_audio(result, user_id, chat_id, message_id)
+    chat = db.get_chat(chat_id, user_id)
+    voice_name = getattr(chat, 'voice_name', 'Kore')
+    image, audio = generate_image_audio(result, user_id, chat_id, message_id, voice_name)
     
     message = Message(
         message_index=message_id,
@@ -78,7 +77,9 @@ def generate_feedback_audio(
     
     start_time = time.time()
 
-    feedback_audio = core_model.generate_text_to_voice(result.feedback,feedback_audio, user_id, None, chat_id, message_id, True)
+    chat = db.get_chat(chat_id, user_id)
+    voice_name = getattr(chat, 'voice_name', 'Kore')
+    feedback_audio = core_model.generate_text_to_voice(result.feedback, feedback_audio, user_id, voice_name, chat_id, message_id, True)
 
     logger.debug(f"Áudio de feedback gerado em {time.time() - start_time:.2f} segundos.")
     
