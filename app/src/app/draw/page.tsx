@@ -66,7 +66,7 @@ export default function DrawPage() {
         setLoadingStory(true);
       }
       
-      const apiUrl = buildApiUrl(`/api/chats/${storedStoryId}`);
+      const apiUrl = buildApiUrl(`/api/chats/${storedStoryId}/`);
       fetch(apiUrl, {
           headers: {
               'Authorization': `Bearer ${firebaseToken}`
@@ -159,7 +159,7 @@ export default function DrawPage() {
     setIsSubmitting(true);
     cleanupWebSocket(); 
 
-    const wsUrl = getWebSocketUrl(`/api/chats/${selectedStory.chat_id}/submit_image_ws`);
+    const wsUrl = getWebSocketUrl(`/api/chats/${selectedStory.chat_id}/submit_image_ws/`);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
