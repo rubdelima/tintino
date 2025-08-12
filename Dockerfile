@@ -21,6 +21,11 @@ RUN pip install --no-cache-dir -r requirements/api.txt
 # Copiar código completo
 COPY . .
 
+COPY entrypoint.sh .
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 # Criar diretórios necessários
 RUN mkdir -p temp/archives temp/chats temp/users
 
