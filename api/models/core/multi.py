@@ -32,12 +32,18 @@ class MultiModels(CoreModelInterface):
             self.generate_image_model = self.google_model.generate_image_model
         else:
             self.generate_image_model = self.openai_model.generate_image_model
+        
         if models_settings.get('generate_voice', 'google') == 'google':
             self.generate_voice_model = self.google_model.generate_voice_model
             self.voice_names = self.google_model.voice_names
-        else:
+        elif models_settings.get('generate_voice', 'google') == 'openai':
             self.generate_voice_model = self.openai_model.generate_voice_model
             self.voice_names = self.openai_model.voice_names
+        elif models_settings.get('generate_voice', 'google') == 'dual':
+            self.generate_voice_model = "Dual Mode"
+            self.voice_names = self.google_model.voice_names + self.openai_model.voice_names
+        else:
+            raise ValueError(f"Unknown voice model: {models_settings.get('generate_voice', 'google')}")
 
     def new_chat(self, child_name: str, instruction: str) -> NewChat:
         if models_settings.get("core_model", "google") == "google":
@@ -56,10 +62,22 @@ class MultiModels(CoreModelInterface):
     
     def generate_text_to_voice(self, content: str, instructions:str, user_id:str, voice_name:Optional[str]=None,
                                chat_id: Optional[str] = None, message_id: Optional[int] = None, feedback:bool=False) -> str:
-        if models_settings.get("generate_voice", "google") == "google":
+        model_voice = models_settings.get("generate_voice", "google")
+        if model_voice == "google":
             return self.google_model.generate_text_to_voice(content, instructions, user_id, voice_name, chat_id, message_id, feedback)
-        return self.openai_model.generate_text_to_voice(content, instructions, user_id, voice_name, chat_id, message_id, feedback)
-    
+        elif model_voice == "dual":
+            if (voice_name is None):
+                voice_name = "Kore"
+            if voice_name in self.google_model.voice_names:
+                return self.google_model.generate_text_to_voice(content, instructions, user_id, voice_name, chat_id, message_id, feedback)
+            elif voice_name in self.openai_model.voice_names:
+                return self.openai_model.generate_text_to_voice(content, instructions, user_id, voice_name, chat_id, message_id, feedback)
+            raise ValueError(f"Unknown voice name: {voice_name}")
+        elif model_voice == "openai":
+            return self.openai_model.generate_text_to_voice(content, instructions, user_id, voice_name, chat_id, message_id, feedback)
+
+        raise ValueError(f"Unknown voice model: {model_voice}")
+
     def generate_scene_image(self, description: str, user_id:str, 
                              chat_id:Optional[str] = None, message_id: Optional[int] = None) ->str:
         if models_settings.get("generate_image", "google") == "google":

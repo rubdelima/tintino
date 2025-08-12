@@ -1,7 +1,8 @@
 
-'use client';
+"use client";
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,7 +13,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -44,8 +44,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm rounded-2xl shadow-2xl border-2 border-primary/20">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <Rocket className="h-8 w-8 text-primary" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
+            <Image src="/icon.png" alt="Ícone do Louie" width={32} height={32} className="h-8 w-8 object-contain" />
           </div>
           <CardTitle className="text-3xl font-bold font-headline">
             {process.env.NEXT_PUBLIC_APP_NAME || 'Louie'}
@@ -80,7 +80,7 @@ export default function LoginPage() {
               />
             </div>
             <Button type="submit" className="w-full btn-sticker mt-4" disabled={loading}>
-              <Rocket className="mr-2 h-5 w-5" />
+              <Image src="/icon.png" alt="Louie" width={20} height={20} className="mr-2 h-5 w-5 object-contain" />
               {loading ? 'Fazendo login...' : 'Entrar'}
             </Button>
             <div className="mt-4 text-center text-sm">

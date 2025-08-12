@@ -55,6 +55,16 @@ class LocalDatabase(DatabaseInterface):
             self.users = {}
             self.chats = {}
             self.archives = set()
+        # pending_message: {chat_id: Message dict}
+        self.pending_messages = {}
+    def get_pending_message(self, chat_id: str):
+        return self.pending_messages.get(chat_id)
+
+    def set_pending_message(self, chat_id: str, message):
+        self.pending_messages[chat_id] = message
+
+    def pop_pending_message(self, chat_id: str):
+        return self.pending_messages.pop(chat_id, None)
     
     def load_db(self):
         os.makedirs("./temp/", exist_ok=True)

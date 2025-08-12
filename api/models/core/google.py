@@ -12,11 +12,11 @@ import base64
 from fastapi import UploadFile
 from google import genai
 from google.genai import types
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 import time
-from typing import Union, List, Literal, Optional
+from typing import Union, List, Literal, Optional, Any, cast
 
 logger = get_logger(__name__)
 load_dotenv()
@@ -104,7 +104,7 @@ class GoogleModel(CoreModelInterface):
         assert isinstance(result, ContinueChat)
         
         if config.get("Models", {}).get("assert_continue", True):
-            result = self.assert_continue_chat(items, user_name, messages, result)
+            result = self.assert_continue_chat(items, user_name, cast(List[BaseMessage], messages), result)
 
         return result # type:ignore
 
@@ -133,7 +133,7 @@ class GoogleModel(CoreModelInterface):
         return result
 
     def assert_continue_chat(self, items: ChatItems, user_name: str,
-                             messages: List[Union[SystemMessage, HumanMessage, AIMessage]], 
+                             messages: List[Any], 
                              result:ContinueChat) -> ContinueChat:
         
         messages += [
@@ -198,11 +198,14 @@ class GoogleModel(CoreModelInterface):
 
         destination_path = f"{user_id}/{chat_id}/{message_id}/audio" if chat_id and (message_id is not None) else f"{user_id}/audio"
 
+        # Para evitar cache do navegador tocar um feedback antigo no mesmo message_id,
+        # use um nome de arquivo único quando for feedback.
+        from uuid import uuid4
         return db.upload_generated_archive(
             audio_bytes,
             destination_path=destination_path,
             mime_type='audio/wav',
-            base_filename="feedback" if  feedback else None
+            base_filename=(f"feedback-{uuid4().hex}") if feedback else None
         )
     
     def generate_scene_image(self, description: str, user_id:str, 

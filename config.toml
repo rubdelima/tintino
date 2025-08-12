@@ -21,8 +21,8 @@ model = "whisper-1" # gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1
 [Models]
 multi_models = true # Se multi_models for verdadeiro, mais de um modelo pode ser usado, desde que se tenha uma chave desse modelo
 core_model = "openai" 
-generate_image = "openai"  # google | openai
-generate_voice = "openai"  # google | openai
+generate_image = "google"  # google | openai
+generate_voice = "dual"  # google | openai | dual
 assert_continue = false
 
 [Gemini]

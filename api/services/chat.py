@@ -33,7 +33,7 @@ async def new_chat(user_id:str, audio_file: UploadFile, voice_name: str = "Kore"
     user = db.get_user(user_id)
     
     # Geração de História
-    logger.debug(f"Enviando prompt para o Gemini do chat")
+    logger.debug(f"Enviando prompt para o {core_model.get_model_name('global')} do chat")
     start_time = time.time()
     result = core_model.new_chat(user.name, instruction)
     logger.debug(f"Resposta do Gemini recebida em {time.time() - start_time:.2f} segundos. Nome da história: {result.title}")
@@ -63,6 +63,18 @@ async def new_chat(user_id:str, audio_file: UploadFile, voice_name: str = "Kore"
     
     db.update_chat(user_id, chat.chat_id, 'messages', message)
     
+
+    # Iniciar geração da próxima mensagem em background e salvar em pending_messages
+    def _generate_next():
+        try:
+            logger.info(f"Pré-processando próxima mensagem para o chat: {chat.chat_id}")
+            next_msg = new_message(user_id, chat.chat_id, 1)
+            db.set_pending_message(chat.chat_id, next_msg.model_dump())
+            logger.info(f"Mensagem pré-processada salva para o chat: {chat.chat_id}")
+        except Exception as e:
+            logger.error(f"Erro ao pré-processar próxima mensagem: {e}")
+    threading.Thread(target=_generate_next, daemon=True).start()
+
     return Chat(
         messages=[message],
         **chat.model_dump()
