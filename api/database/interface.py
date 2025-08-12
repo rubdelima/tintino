@@ -5,6 +5,17 @@ from fastapi import UploadFile
 from typing import Literal, Optional, Any
 
 class DatabaseInterface(ABC):
+
+    # Pending message helpers
+    @abstractmethod
+    def set_pending_message(self, chat_id: str, message: Any) -> None:
+        """Define/atualiza a mensagem pré-gerada (pending) de um chat."""
+        pass
+
+    @abstractmethod
+    def pop_pending_message(self, chat_id: str) -> Optional[Any]:
+        """Remove e retorna a mensagem pré-gerada (pending) se existir."""
+        pass
     
     @abstractmethod
     def create_user(self, user_data: CreateUser, user_id: str) -> UserDB:

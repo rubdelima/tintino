@@ -1,11 +1,10 @@
 import firebase_admin
-from firebase_admin import credentials, firestore, storage #type:ignore
-from google.cloud.firestore_v1 import FieldFilter #type:ignore
+from firebase_admin import credentials, firestore, storage  # type:ignore
 from fastapi import HTTPException, UploadFile
 import uuid
 import os
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any, Dict, cast
 
 from api.database.interface import DatabaseInterface
 from api.schemas.users import User, CreateUser, UserDB
@@ -49,12 +48,24 @@ class FirebaseDB(DatabaseInterface):
 
             self.db = firestore.client()
             self.bucket = storage.bucket()
-            self.temp_chat_ids = {}
+            self.temp_chat_ids: Dict[str, str] = {}
+            # Armazena mensagens pré-geradas (pending) em memória, similar ao LocalDatabase
+            # Estrutura: { chat_id: Message.dict() }
+            self.pending_messages: Dict[str, dict] = {}
 
         except Exception as e:
             logger.error(f"Erro ao inicializar o Firebase: {e}")
             raise HTTPException(
                 status_code=500, detail="Não foi possível conectar ao Firebase.")
+
+    # --- Pending Message Helpers (para pre-generation) ---
+    def set_pending_message(self, chat_id: str, message: Any) -> None:
+        """Salva/atualiza mensagem pré-gerada em memória."""
+        self.pending_messages[chat_id] = message
+
+    def pop_pending_message(self, chat_id: str) -> Optional[Any]:
+        """Retorna e remove a mensagem pré-gerada do chat, se existir."""
+        return self.pending_messages.pop(chat_id, None)
 
     # --- User Functions ---
 
@@ -73,7 +84,7 @@ class FirebaseDB(DatabaseInterface):
         if not user_doc.exists:
             raise ValueError("User not found")
 
-        user_data = user_doc.to_dict()
+        user_data = cast(dict[str, Any], user_doc.to_dict())
         return User(**user_data, chats=self.get_user_chats(user_id))
     
     def verify_user(self, user_id: str) -> bool:
@@ -88,21 +99,16 @@ class FirebaseDB(DatabaseInterface):
 
     def get_user_chats(self, user_id: str) -> list[MiniChat]:
         chats_ref = self.db.collection('chats')
-        
-        query = chats_ref.\
-            where(filter=FieldFilter('user_id', '==', user_id))
-                    
-        user_chats = [MiniChat(**doc.to_dict()) for doc in query.stream()]
+        stream = chats_ref.where('user_id', '==', user_id).stream()
+        user_chats = [MiniChat(**(doc.to_dict() or {})) for doc in stream]
         user_chats.sort(key=lambda x: x.last_update, reverse=True)
         
         return user_chats
     
     def get_chat_items(self, chat_id: str) -> ChatItems:
-        query = self.db.collection("messages").\
-            where(filter=FieldFilter('chat_id', '==', chat_id)).\
-            select(["message_index", "paint_image", "text_voice", "image"])
-                
-        chat_items = [doc.to_dict() for doc in query.stream()]
+        messages_ref = self.db.collection("messages")
+        stream = messages_ref.where('chat_id', '==', chat_id).stream()
+        chat_items = [doc.to_dict() for doc in stream]
         chat_items.sort(key=lambda x: x['message_index'])
         
         return ChatItems(
@@ -161,28 +167,22 @@ class FirebaseDB(DatabaseInterface):
         
         if not chat_doc.exists:
             raise HTTPException(status_code=404, detail="Chat not found")
-
-        chat_data = chat_doc.to_dict()
+        chat_data = chat_doc.to_dict() or {}
         if chat_data.get('user_id') != user_id:
             raise HTTPException(status_code=403, detail="Unauthorized access")
-        
         return chat_ref, MiniChat(**chat_data)
     
     def get_chat(self, chat_id: str, user_id: str) -> Chat:
-        chat_ref, chat_data = self.assert_chat_exists(chat_id, user_id)
-
-        messages = list(self.db.collection('messages').\
-            where(filter=FieldFilter('chat_id', '==', chat_id)).stream())
-        messages = [Message(**doc.to_dict()) for doc in messages]
+        _, chat_data = self.assert_chat_exists(chat_id, user_id)
+        messages_ref = self.db.collection('messages')
+        messages_docs = list(messages_ref.where('chat_id', '==', chat_id).stream())
+        messages = [Message(**(doc.to_dict() or {})) for doc in messages_docs]
         messages.sort(key=lambda x: x.message_index)
-        
-        subimits = list(self.db.collection('submits').\
-            where(filter=FieldFilter('chat_id', '==', chat_id)).stream())
-        
-        subimits = [SubmitImageMessage(**doc.to_dict()) for doc in subimits]
+        submits_ref = self.db.collection('submits')
+        sub_docs = list(submits_ref.where('chat_id', '==', chat_id).stream())
+        subimits = [SubmitImageMessage(**(doc.to_dict() or {})) for doc in sub_docs]
         subimits = [s for s in subimits if s.data.is_correct]
         subimits.sort(key=lambda x: x.message_index)
-
         return Chat(
             messages=messages,
             subimits=subimits,

@@ -1,12 +1,14 @@
 import json
 import base64
-from typing import Optional
+from typing import Optional, Any, Dict
 import magic
 import mimetypes
 from fastapi import UploadFile
 import uuid
 from pathlib import Path
 import os
+import io
+import wave
 
 def load_json(file_path: str) -> dict:
     with open(file_path, "r") as f:
@@ -33,6 +35,33 @@ def image_to_b64(image: str, text:Optional[str] = None) -> dict:
     if text:
         data["text"] = text
     return data
+
+def image_part_from_any(image_ref: Optional[Any]) -> Optional[Dict[str, Any]]:
+    """
+    Constrói um 'content part' de imagem para o Responses API a partir de:
+      - URL (http/https)
+      - data URL (data:image/...;base64,...)
+      - bytes (codifica pra data URL)
+      - None (retorna None)
+    """
+    if not image_ref:
+        return None
+
+    # Já é data URL?
+    if isinstance(image_ref, str) and image_ref.startswith("data:image/"):
+        return {"type": "input_image", "image_url": image_ref}
+
+    # URL http(s)?
+    if isinstance(image_ref, str) and (image_ref.startswith("http://") or image_ref.startswith("https://")):
+        return {"type": "input_image", "image_url": image_ref}
+
+    # Bytes -> cria data URL (png por padrão)
+    if isinstance(image_ref, (bytes, bytearray)):
+        b64 = base64.b64encode(image_ref).decode("utf-8")
+        data_url = f"data:image/png;base64,{b64}"
+        return {"type": "input_image", "image_url": data_url}
+    
+    raise ValueError("image_ref deve ser uma URL, data URL ou bytes")
 
 async def get_mime_extension(file: UploadFile):
     try:
@@ -74,3 +103,13 @@ def generate_filename(mime_type: str, base_filename: Optional[str]) -> str:
         extension = '.bin'
         
     return f"{base_filename}{extension}"
+
+def convert_raw_audio_to_wav(raw_audio_data: bytes,channels: int = 1,sampwidth: int = 2,framerate: int = 24000) -> bytes:    
+    wav_in_memory = io.BytesIO()
+    with wave.open(wav_in_memory, 'wb') as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sampwidth)
+        wf.setframerate(framerate)
+        wf.writeframes(raw_audio_data)
+        
+    return wav_in_memory.getvalue()

@@ -21,10 +21,16 @@ export interface SubmitImageMessage {
 }
 
 export interface Story {
-  chat_id: string;
-  title: string;
-  chat_image: string;
-  last_update: string;
-  messages: Message[];
-  subimits: SubmitImageMessage[];
+    chat_id: string;
+    title: string;
+    chat_image: string;
+    last_update: string;
+    messages: Message[];
+    subimits: SubmitImageMessage[];
+    voice_name: string;
+}
+
+export interface ChatsAndVoices {
+    chats: Story[];
+    available_voices: string[];
 }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect, Form
 from typing import List
 import traceback
 import asyncio
@@ -43,12 +43,14 @@ router = APIRouter(
         400: {"description": "Arquivo de áudio inválido"},
     }
 )
+
 async def create_chat(
-    voice_audio: UploadFile, 
+    voice_audio: UploadFile,
+    voice_name: str = Form(default="Kore"),
     user_id: str = Depends(verify_token)
 ):
     try:
-        chat = await new_chat(user_id, voice_audio) #type:ignore
+        chat = await new_chat(user_id, voice_audio, voice_name) #type:ignore
         logger.info(f"Chat de Título: {chat.title} - ID: {chat.chat_id}")
         return chat
     except HTTPException as http_exc:
@@ -59,9 +61,11 @@ async def create_chat(
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+from api.schemas.messages import ChatsAndVoicesResponse
+
 @router.get(
     "/", 
-    response_model=List[MiniChat], 
+    response_model=ChatsAndVoicesResponse, 
     status_code=200,
     summary="Listar chats do usuário",
     description="""
@@ -76,9 +80,13 @@ async def create_chat(
     }
 )
 async def get_chats(user_id: str = Depends(verify_token)):
+    from api.models.core import core_model
     try:
         user = db.get_user(user_id)
-        return user.chats
+        return {
+            "chats": user.chats,
+            "available_voices": getattr(core_model, "voice_names", ["Kore"])
+        }
     except HTTPException as http_exc:
         logger.error(f"Erro ao buscar chats: {http_exc.detail}")
         raise http_exc
@@ -106,11 +114,14 @@ async def get_chats(user_id: str = Depends(verify_token)):
     }
 )
 async def get_chat(
-    chat_id: str, 
-    user_id: str = Depends(verify_token)
+    chat_id: str,
+    user_id: str = Depends(verify_token),
 ):
     try:
-        chat = db.get_chat(chat_id, user_id) #type:ignore
+        chat = db.get_chat(chat_id, user_id)  # type: ignore
+        # Limita as mensagens visíveis a len(submits) + 1 para evitar expor pré-geradas indevidamente
+        allowed = len(chat.subimits) + 1
+        chat.messages = chat.messages[:allowed]
         return chat
     except HTTPException as http_exc:
         logger.error(f"Erro ao buscar chat: {http_exc.detail}")
@@ -153,20 +164,38 @@ async def submit_image_api(
         
         logger.debug(f"Submetendo desenho {message_index} do chat : {chat.chat_id}")
         
+
         result = await submit_image(chat_id, chat.messages[-1].paint_image, image, user_id)
-        
         image_path = None
         if result.is_correct:
-            logger.info(f"Imagem submetida corretamente para o chat: {chat_id}, gerando nova mensagem.")
+            logger.info(f"Imagem submetida corretamente para o chat: {chat_id}, entregando mensagem pré-processada.")
             image_path = await db.store_user_archive(user_id, image)
             feedback_audio = "Fale de uma maneira energética, elogiando o desenho da criança com essas palavras: "
-            continue_chat(user_id, chat_id, message_index + 1)
+
+            # Entregar a pending_message se existir
+            pending = db.pop_pending_message(chat_id)
+            if pending:
+                # Adiciona a mensagem pré-processada ao chat
+                db.update_chat(user_id, chat_id, 'messages', Message(**pending))
+                # Iniciar geração da próxima mensagem em background
+                def _generate_next():
+                    try:
+                        logger.info(f"Pré-processando nova mensagem para o chat: {chat_id}")
+                        from api.services.messages import new_message
+                        next_msg = new_message(user_id, chat_id, pending['message_index'] + 1)
+                        db.set_pending_message(chat_id, next_msg.model_dump())
+                        logger.info(f"Nova mensagem pré-processada salva para o chat: {chat_id}")
+                    except Exception as e:
+                        logger.error(f"Erro ao pré-processar nova mensagem: {e}")
+                import threading
+                threading.Thread(target=_generate_next, daemon=True).start()
+            else:
+                logger.warning(f"Nenhuma mensagem pré-processada encontrada para o chat: {chat_id}")
         else:
             logger.info(f"Imagem submetida incorretamente para o chat: {chat_id}, gerando feedback.")
             feedback_audio = "Fale de uma maneira apasiguadora, incentivando a criança a melhorar seu desenho com essas palavras: "
-            
+
         feedback = generate_feedback_audio(result, feedback_audio, user_id, chat_id, message_index, image_path)
-        
         return feedback
     
     except HTTPException as http_exc:
@@ -344,6 +373,7 @@ async def get_websocket_docs(chat_id: str):
     }
 
 @router.websocket("/{chat_id}/submit_image_ws")
+@router.websocket("/{chat_id}/submit_image_ws/")
 async def submit_image_websocket(
     websocket: WebSocket,
     chat_id: str
@@ -425,11 +455,12 @@ async def submit_image_websocket(
     Clientes podem escolher usar REST (resposta única) ou WebSocket (notificação em tempo real).
     """
     
+    # Aceita a conexão o quanto antes; token será verificado logo em seguida
     await websocket.accept()
     user_id = None
     
     try:
-        # 1. Aguarda autenticação
+        # 1. Aguarda autenticação (primeira mensagem deve conter token)
         auth_data = await websocket.receive_json()
         
         if auth_data.get("type") != "auth":
@@ -443,7 +474,7 @@ async def submit_image_websocket(
         # Verifica o token
         try:
             user_id = verify_token_string(auth_data.get("token"))
-        except:
+        except Exception:
             await websocket.send_json({
                 "type": "error", 
                 "message": "Token de autenticação inválido"
@@ -480,8 +511,9 @@ async def submit_image_websocket(
         )
         
         # Avalia o desenho
-        result = await submit_image(chat_id, chat.messages[-1].paint_image, image_file, user_id)
-        
+        expected_draw = chat.messages[len(chat.subimits)].paint_image
+        result = await submit_image(chat_id, expected_draw, image_file, user_id)
+
         # 4. Processa resultado e gera feedback
         image_path = None
         if result.is_correct:
@@ -489,7 +521,7 @@ async def submit_image_websocket(
             image_path = await db.store_user_archive(user_id, image_file)
             feedback_audio = "Fale de uma maneira energética, elogiando o desenho da criança com essas palavras: "
         else:
-            logger.info(f"WebSocket: Imagem submetida incorretamente para o chat: {chat_id}")
+            logger.info(f"WebSocket: Imagem submetida incorretamente para o chat: {chat_id}, era esperado um {expected_draw}")
             feedback_audio = "Fale de uma maneira apasiguadora, incentivando a criança a melhorar seu desenho com essas palavras: "
         
         # Gera feedback de áudio
@@ -509,31 +541,68 @@ async def submit_image_websocket(
             }
         })
         
-        # 6. Se correto, gera nova mensagem e mantém conexão
+        # 6. Se correto, usa mensagem pré-processada (pending) e dispara a próxima em background
         if result.is_correct:
-            logger.info(f"WebSocket: Gerando nova mensagem para o chat: {chat_id}")
-            
-            # Callback para enviar nova mensagem quando pronta
-            async def send_new_message(message: Message):
+            # Consumir pending message caso exista
+            pending = db.pop_pending_message(chat_id)
+            if pending:
                 try:
+                    msg = Message(**pending)
+                    # Persistir a mensagem e enviar imediatamente
+                    db.update_chat(user_id, chat_id, 'messages', msg)
                     await websocket.send_json({
                         "type": "new_message",
                         "message": {
-                            "message_index": message.message_index,
-                            "paint_image": message.paint_image,
-                            "text_voice": message.text_voice,
-                            "intro_voice": message.intro_voice,
-                            "scene_image_description": message.scene_image_description,
-                            "image": message.image,
-                            "audio": message.audio
+                            "message_index": msg.message_index,
+                            "paint_image": msg.paint_image,
+                            "text_voice": msg.text_voice,
+                            "intro_voice": msg.intro_voice,
+                            "scene_image_description": msg.scene_image_description,
+                            "image": msg.image,
+                            "audio": msg.audio
                         }
                     })
-                    logger.info(f"WebSocket: Nova mensagem enviada para o chat: {chat_id}")
+                    logger.info(f"WebSocket: Nova mensagem (pending) enviada para o chat: {chat_id}")
                 except Exception as e:
-                    logger.error(f"WebSocket: Erro ao enviar nova mensagem: {e}")
-            
-            # Gera nova mensagem de forma assíncrona
-            new_message = await continue_chat_async(user_id, chat_id, message_index + 1, send_new_message)
+                    logger.error(f"WebSocket: Erro ao usar mensagem pending: {e}")
+            else:
+                logger.info(f"WebSocket: Sem mensagem pending; gerando nova mensagem agora para o chat: {chat_id}")
+                
+                # Callback para enviar nova mensagem quando pronta
+                async def send_new_message(message: Message):
+                    try:
+                        await websocket.send_json({
+                            "type": "new_message",
+                            "message": {
+                                "message_index": message.message_index,
+                                "paint_image": message.paint_image,
+                                "text_voice": message.text_voice,
+                                "intro_voice": message.intro_voice,
+                                "scene_image_description": message.scene_image_description,
+                                "image": message.image,
+                                "audio": message.audio
+                            }
+                        })
+                        logger.info(f"WebSocket: Nova mensagem enviada para o chat: {chat_id}")
+                    except Exception as e:
+                        logger.error(f"WebSocket: Erro ao enviar nova mensagem: {e}")
+                
+                # Gera nova mensagem de forma assíncrona
+                _ = await continue_chat_async(user_id, chat_id, message_index + 1, send_new_message)
+
+            # Iniciar geração da próxima pending em background
+            import threading
+            from api.services.messages import new_message as generate_new_message
+            def _prefetch_next():
+                try:
+                    next_index = message_index + 1 if not pending else pending.get('message_index', message_index) + 1
+                    logger.info(f"WebSocket: Pré-processando próxima mensagem {next_index} para o chat: {chat_id}")
+                    next_msg = generate_new_message(user_id, chat_id, next_index)
+                    db.set_pending_message(chat_id, next_msg.model_dump())
+                    logger.info(f"WebSocket: Próxima mensagem pré-processada salva para o chat: {chat_id}")
+                except Exception as e:
+                    logger.error(f"WebSocket: Erro ao pré-processar próxima mensagem: {e}")
+            threading.Thread(target=_prefetch_next, daemon=True).start()
         
         # 7. Fecha conexão
         await websocket.close()

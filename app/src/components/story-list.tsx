@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import type { Story } from '@/lib/types';
+import type { Story, ChatsAndVoices } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Paintbrush, Plus } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth.tsx';
+import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from './ui/skeleton';
 import { getApiEndpoint } from '@/lib/api-config';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,7 @@ interface StoryListProps {
   onSelectStory: (story: Story) => void;
   selectedStoryId?: string | null;
   showNewStoryButton?: boolean;
+  onVoicesLoaded?: (voices: string[]) => void;
 }
 
 const isEmoji = (str: string | null | undefined) => {
@@ -22,8 +23,9 @@ const isEmoji = (str: string | null | undefined) => {
   return emojiRegex.test(str) && str.match(emojiRegex)?.length === 1;
 };
 
-export function StoryList({ onSelectStory, selectedStoryId, showNewStoryButton = false }: StoryListProps) {
+export function StoryList({ onSelectStory, selectedStoryId, showNewStoryButton = false, onVoicesLoaded }: StoryListProps) {
   const [stories, setStories] = useState<Story[]>([]);
+  const [voices, setVoices] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const { firebaseToken } = useAuth();
   const router = useRouter();
@@ -52,10 +54,13 @@ export function StoryList({ onSelectStory, selectedStoryId, showNewStoryButton =
         if (!response.ok) {
           throw new Error('Failed to fetch stories');
         }
-        const data = await response.json();
-        
-        if (isMounted) {
+        const data: ChatsAndVoices | Story[] = await response.json();
+        if (Array.isArray(data)) {
           setStories(data);
+        } else {
+          setStories(data.chats);
+          setVoices(data.available_voices || []);
+          if (onVoicesLoaded) onVoicesLoaded(data.available_voices || []);
         }
       } catch (error) {
         console.error(error);
