@@ -8,9 +8,7 @@ from api.services.messages import new_message, generate_image_audio
 import threading
 import asyncio
 import os
-from api.models.prompts import initial_prompt
-from api.models.google import new_chat_llm
-from langchain_core.messages import HumanMessage, SystemMessage
+from api.models.core import core_model
 from typing import Union, List, Callable, Optional, Awaitable
 from api.schemas.llm import NewChat
 from api.database import db
@@ -22,7 +20,7 @@ logger = get_logger(__name__)
 
 os.makedirs('./temp', exist_ok=True)
 
-async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
+async def new_chat(user_id:str, audio_file: UploadFile, voice_name: str = "Kore") -> Chat:
     # Trasncrição de Áudio
     #TODO: Sempre está achando que é outro formato mesmo sendo WAV, futuramente resolver !
     audio_path = await prepare_audio_file(audio_file)
@@ -35,11 +33,9 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
     user = db.get_user(user_id)
     
     # Geração de História
-    messages : List[Union[SystemMessage, HumanMessage]] = [SystemMessage(content=initial_prompt.format(child_name=user.name)),HumanMessage(content=instruction)]
-    logger.debug(f"Enviando prompt para o Gemini do chat")
+    logger.debug(f"Enviando prompt para o {core_model.get_model_name('global')} do chat")
     start_time = time.time()
-    result = new_chat_llm.invoke(messages)
-    assert isinstance(result, NewChat)
+    result = core_model.new_chat(user.name, instruction)
     logger.debug(f"Resposta do Gemini recebida em {time.time() - start_time:.2f} segundos. Nome da história: {result.title}")
     
     # Salvando o Chat
@@ -47,10 +43,11 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
         title=result.title,
         chat_image=result.shortcode,
         last_update= datetime.now(timezone.utc),
+        voice_name=voice_name or "Kore"
     ))
     
     # Geração de Audio e Imagem
-    image, audio = generate_image_audio(result, user_id, chat.chat_id, 0)
+    image, audio = generate_image_audio(result, user_id, chat.chat_id, 0, voice_name)
     
     # Salvando Mensagem
     logger.debug(f"Salvando nova mensagem no banco de dados para o chat {chat.chat_id}")
@@ -66,6 +63,18 @@ async def new_chat(user_id:str, audio_file: UploadFile) -> Chat:
     
     db.update_chat(user_id, chat.chat_id, 'messages', message)
     
+
+    # Iniciar geração da próxima mensagem em background e salvar em pending_messages
+    def _generate_next():
+        try:
+            logger.info(f"Pré-processando próxima mensagem para o chat: {chat.chat_id}")
+            next_msg = new_message(user_id, chat.chat_id, 1)
+            db.set_pending_message(chat.chat_id, next_msg.model_dump())
+            logger.info(f"Mensagem pré-processada salva para o chat: {chat.chat_id}")
+        except Exception as e:
+            logger.error(f"Erro ao pré-processar próxima mensagem: {e}")
+    threading.Thread(target=_generate_next, daemon=True).start()
+
     return Chat(
         messages=[message],
         **chat.model_dump()

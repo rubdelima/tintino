@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { StoryList } from '@/components/story-list';
 import type { Story } from '@/lib/types';
 import { Mic, Play, Send, Square, RefreshCcw, Pause, LogOut, Loader2 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth.tsx';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { getApiEndpoint } from '@/lib/api-config';
 
@@ -31,11 +31,15 @@ export default function HomePage() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<string[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const router = useRouter();
   const { logout, user, firebaseToken } = useAuth();
   const { toast } = useToast();
+
+  // ...restante do código...
 
   const handleRecord = async () => {
     if (isRecording) {
@@ -85,6 +89,7 @@ export default function HomePage() {
     try {
       const formData = new FormData();
       formData.append('voice_audio', audioBlob, 'story.wav');
+      formData.append('voice_name', selectedVoice || 'Kore');
 
       const response = await fetch(getApiEndpoint('CHATS'), {
         method: 'POST',
@@ -153,7 +158,7 @@ export default function HomePage() {
         </SidebarHeader>
         <Separator />
         <SidebarContent>
-          <StoryList onSelectStory={handleSelectStory} selectedStoryId={selectedStory?.chat_id} />
+          <StoryList onSelectStory={handleSelectStory} selectedStoryId={selectedStory?.chat_id} onVoicesLoaded={setAvailableVoices} />
         </SidebarContent>
         <SidebarFooter>
           <div className="flex flex-col gap-2 p-2">
@@ -192,8 +197,22 @@ export default function HomePage() {
             </div>
             <Card className="p-8 rounded-2xl shadow-lg border-2 border-primary/20 max-w-lg w-full">
               <CardContent className="p-0">
+                <div className="flex flex-col items-center gap-4">
+                  <label htmlFor="voice-select" className="text-base font-medium text-primary">Escolha a voz da narração:</label>
+                  <select
+                    id="voice-select"
+                    className="border rounded-lg px-3 py-2 text-base focus:outline-primary"
+                    value={selectedVoice}
+                    onChange={e => setSelectedVoice(e.target.value)}
+                    disabled={isRecording || isSending}
+                  >
+                    {availableVoices.map((voice) => (
+                      <option key={voice} value={voice}>{voice}</option>
+                    ))}
+                  </select>
+                </div>
                 {!audioBlob ? (
-                  <div className="flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-4 mt-4">
                     <p className="text-lg text-muted-foreground">
                       {isRecording ? 'Gravando sua história incrível...' : "Pronto para contar uma história? Aperte o botão para começar!"}
                     </p>
@@ -202,7 +221,7 @@ export default function HomePage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-4 mt-4">
                      <p className="text-lg text-muted-foreground">
                       Ótima história! Você pode ouvir uma prévia ou enviá-la para ser desenhada.
                     </p>
@@ -225,6 +244,7 @@ export default function HomePage() {
         </div>
       </SidebarInset>
       <audio ref={audioRef} />
+
     </SidebarProvider>
   );
 }

@@ -1,6 +1,7 @@
 from api.constraints import config
 from api.utils.logger import get_logger
 from api.database.interface import DatabaseInterface
+import traceback
 
 logger = get_logger("api.database")
 
@@ -23,7 +24,8 @@ try:
             db = FirebaseDB()
             logger.info("Firebase database initialized successfully.")
         except:
-            logger.warning("Failed to import Firebase database module. Trying local database.")
+            logger.error("Failed to import Firebase database module. Trying local database.")
+            logger.error(traceback.format_exc())
             db = get_local_database()
             
 except Exception as e:
