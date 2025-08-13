@@ -15,17 +15,24 @@ from api.constraints import config
 
 logger = get_logger(__name__)
 
-def get_credentials_file() -> str:
-    possible_paths = [
-        "firebase.json",
-        "/etc/secrets/firebase.json"
-    ]
-    
-    for path in possible_paths:
-        if os.path.exists(path):
-            return path
-    
-    raise FileNotFoundError("Arquivo firebase.json não encontrado em nenhum dos locais esperados")
+def get_credentials() -> dict:
+    firebase_config_str = os.getenv('FIREBASE_CREDENTIALS_JSON')
+    if not firebase_config_str:
+        possible_paths = [
+            "./firebase.json",
+            "/etc/secrets/firebase.json"
+        ]
+
+        for path in possible_paths:
+            if os.path.exists(path):
+                with open(path) as f:
+                    firebase_config_str = f.read()
+                    break
+
+        if not firebase_config_str:
+            raise FileNotFoundError("Arquivo firebase.json não encontrado em nenhum dos locais esperados")
+
+    return json.loads(firebase_config_str)
 
 # Obter usuário de teste do config
 TEST_USER = config.get("APISettings", {}).get("test_user", "")
@@ -35,8 +42,7 @@ TEST_USER = config.get("APISettings", {}).get("test_user", "")
 class FirebaseDB(DatabaseInterface):
     def __init__(self) -> None:
         try:
-            firebase_config_str = os.getenv('FIREBASE_CREDENTIALS_JSON')
-            cred = credentials.Certificate(json.loads(firebase_config_str))
+            cred = credentials.Certificate(get_credentials())
 
             project_id = cred.project_id
             storage_bucket_url = f"{project_id}.firebasestorage.app"
@@ -71,11 +77,15 @@ class FirebaseDB(DatabaseInterface):
     # --- User Functions ---
 
     def create_user(self, user_data: CreateUser, user_id: str) -> UserDB:
+        user_doc = self.db.collection('users').document(user_id).get()
+        if user_doc.exists:
+            # Usuário já existe, retorna o existente
+            user_data_db = user_doc.to_dict() or {}
+            return UserDB(user_id=user_id, name=user_data_db.get('name', user_data.name))
         user = UserDB(
             user_id=user_id,
             name=user_data.name
         )
-        
         self.db.collection('users').document(user_id).set(user.model_dump())
         logger.info(f"Usuário criado no Firestore com ID: {user_id}")
         return user

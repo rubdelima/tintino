@@ -85,6 +85,19 @@ export function AuthProviderWrapper({ children }: { children: ReactNode }) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const token = await userCredential.user.getIdToken();
     setFirebaseToken(token);
+    // Sempre tenta criar o usuário no backend (idempotente)
+    try {
+      await fetch(buildApiUrl('/api/users/create'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: userCredential.user.displayName || 'Usuário' })
+      });
+    } catch (e) {
+      // Ignora erro se já existir ou backend indisponível, mas pode exibir toast se quiser
+    }
     router.push('/');
   };
 
